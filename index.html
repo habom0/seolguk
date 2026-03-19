@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷 - 기능 고도화 버전</title>
+    <title>설국 인트라넷 - UI 최적화 및 권한 강화</title>
     <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -288,7 +288,7 @@
                             )}
                         </div>
                         <div className="pt-4 border-t border-slate-800 font-bold">
-                            {user.role === ROLES.ADMIN && <NavItem active={activeTab==='admin'} onClick={()=>setActiveTab('admin')} icon="settings" label="시스템 설정" color="slate" />}
+                            {(user.role === ROLES.ADMIN || user.role === ROLES.AUDIT) && <NavItem active={activeTab==='admin'} onClick={()=>setActiveTab('admin')} icon="settings" label="시스템 설정" color="slate" />}
                             <div className="card bg-slate-950 p-4 border-slate-800 mt-2">
                                 <div className="text-sm font-heavy truncate text-white">{user.nickname}</div>
                                 <div className="text-[10px] text-blue-500 font-bold">{user.role} ({user.sn})</div>
@@ -302,7 +302,7 @@
                         {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
                         {activeTab === 'ranking' && <RankingView records={records} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} />}
-                        {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} />}
+                        {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} />}
                     </main>
                 </div>
             );
@@ -378,17 +378,17 @@
                                 <div className="grid grid-cols-2 gap-4 font-bold">
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
-                                        <input className="input-base font-bold" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
+                                        <input className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
                                     </div>
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 닉네임</label>
-                                        <input className="input-base font-bold" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" />
+                                        <input className="input-base font-bold text-lg" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {Object.keys(ITEM_INFO).map(k => (
                                         <div key={k}>
-                                            <label className="text-lg text-slate-300 mb-2 flex items-center gap-1 font-heavy ml-1">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
+                                            <label className="text-base text-slate-300 mb-2 flex items-center gap-1 font-heavy ml-1">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
                                             <input type="number" className={`input-base font-heavy text-xl ${(parseInt(form[k]) > ITEM_INFO[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${ITEM_INFO[k].max}`} />
                                         </div>
                                     ))}
@@ -400,11 +400,11 @@
                             </div>
                             <div className="lg:col-span-2 bg-slate-950 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-inner font-heavy">
                                 <div className="space-y-6 font-heavy">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy">총 매출액</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p></div></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy text-lg">총 매출액</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p></div></div>
                                     <div className="h-px bg-slate-900 font-heavy"></div>
-                                    <div className="flex justify-between items-end font-heavy"><span className="text-blue-500 font-heavy">공계 입금액(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400 font-heavy">{formatKRW(total * 0.5)}</p></div></div>
-                                    <button type="button" onClick={copyAmount} className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-xs transition-all border border-blue-500/20 font-bold">
-                                        <Icon name="copy" size={14}/> 숫자만 복사 (콤마 제외)
+                                    <div className="flex justify-between items-end font-heavy"><span className="text-blue-500 font-heavy text-lg">공계 입금액(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400 font-heavy">{formatKRW(total * 0.5)}</p></div></div>
+                                    <button type="button" onClick={copyAmount} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-sm transition-all border border-blue-500/20 font-bold">
+                                        <Icon name="copy" size={16}/> 숫자만 복사 (콤마 제외)
                                     </button>
                                 </div>
                                 {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce mt-4">⚠️ 최대 수량 초과!</p>}
@@ -416,66 +416,25 @@
                     <div className="card overflow-x-auto font-heavy">
                         <h2 className="text-xl font-heavy mb-6">최근 나의 판매 내역</h2>
                         <table className="w-full text-left font-bold">
-                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest font-heavy"><tr className="font-heavy"><th className="p-4">날짜</th><th className="p-4">구매자</th><th className="p-4 text-center">매출</th><th className="p-4 text-center">상태</th><th className="p-4 text-center">수정</th></tr></thead>
+                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest font-heavy"><tr className="font-heavy"><th className="p-4 whitespace-nowrap">날짜</th><th className="p-4 whitespace-nowrap">구매자</th><th className="p-4 text-center whitespace-nowrap">매출</th><th className="p-4 text-center whitespace-nowrap">상태</th><th className="p-4 text-center whitespace-nowrap">수정</th></tr></thead>
                             <tbody className="text-white font-bold">
                                 {records.filter(r => r.sellerUid === user.uid).slice(0, 5).map(r => (
                                     <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors font-heavy">
-                                        <td className="p-4 text-xs font-mono text-slate-500">{formatDate(r.timestamp)}</td>
-                                        <td className="p-4">{r.buyerNickname} ({r.buyerSn})</td>
-                                        <td className="p-4 text-center font-heavy">{formatKRW(r.totalAmount)}</td>
-                                        <td className="p-4 text-center">
+                                        <td className="p-4 text-xs font-mono text-slate-500 whitespace-nowrap">{formatDate(r.timestamp)}</td>
+                                        <td className="p-4 whitespace-nowrap">{r.buyerNickname} ({r.buyerSn})</td>
+                                        <td className="p-4 text-center font-heavy whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
+                                        <td className="p-4 text-center whitespace-nowrap">
                                             <div className="flex flex-col items-center gap-1 font-heavy">
                                                 <StatusBadge record={r} />
                                                 {r.isEdited && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-md font-heavy">수정됨</span>}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-center font-heavy"><button onClick={()=>setEditing({...r})} className="p-2.5 bg-slate-800 hover:bg-blue-600 rounded-xl transition-all font-heavy"><Icon name="edit-2" size={16}/></button></td>
+                                        <td className="p-4 text-center font-heavy whitespace-nowrap"><button onClick={()=>setEditing({...r})} className="p-2.5 bg-slate-800 hover:bg-blue-600 rounded-xl transition-all font-heavy"><Icon name="edit-2" size={16}/></button></td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-
-                    {showPrices && (
-                        <Modal title="설국 가격표 및 가이드" onClose={()=>setShowPrices(false)}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                {Object.keys(ITEM_INFO).map(k => (
-                                    <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800">
-                                        <div className="text-4xl">{ITEM_INFO[k].emoji}</div>
-                                        <div className="flex-1 font-bold font-bold"><div className="flex justify-between font-heavy font-heavy"><span className="text-white text-lg font-bold">{ITEM_INFO[k].label}</span><span className="text-blue-400">{formatKRW(PRICES[k])}</span></div><p className="text-[10px] text-slate-500 uppercase font-bold">{ITEM_INFO[k].desc}</p></div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="bg-blue-900/10 p-8 rounded-3xl border border-blue-500/20 font-bold">
-                                <h4 className="text-xl text-blue-400 flex items-center gap-2 font-heavy mb-4"><Icon name="truck" size={24}/> 배달료 안내</h4>
-                                <div className="space-y-3 font-bold">
-                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800 font-bold"><span className="text-slate-300">남부 배달</span><span className="text-white font-heavy text-lg">10억</span></div>
-                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800 font-bold"><span className="text-slate-300">북부 배달</span><span className="text-white font-heavy text-lg">20억</span></div>
-                                    <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20 text-center text-green-400 font-heavy">💡 설국 앞 사유지 콜 시 배달료 면제</div>
-                                </div>
-                            </div>
-                        </Modal>
-                    )}
-
-                    {editing && (
-                        <Modal title="장부 수정" onClose={()=>setEditing(null)}>
-                            <form onSubmit={handleEditSave} className="space-y-6 font-bold">
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 font-bold">
-                                    {Object.keys(ITEM_INFO).map(k => (
-                                        <div key={k} className="space-y-1">
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase">{ITEM_INFO[k].label}</label>
-                                            <input type="number" className="input-base font-heavy text-lg py-3" value={editing[k]||0} onChange={e=>setEditing({...editing, [k]: parseInt(e.target.value)||0})} />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-6 bg-red-950/20 rounded-3xl border border-red-900/30 font-bold">
-                                    <label className="text-xs text-red-500 uppercase font-heavy mb-2 block">수정 사유 (필수)</label>
-                                    <textarea className="input-base h-24 font-bold" value={reason} onChange={e=>setReason(e.target.value)} required />
-                                </div>
-                                <button type="submit" className="btn btn-blue w-full py-5 text-xl font-heavy shadow-xl">재제출</button>
-                            </form>
-                        </Modal>
-                    )}
                 </div>
             );
         }
@@ -499,16 +458,16 @@
                     <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6 font-heavy">날짜</th><th className="p-6 font-heavy">판매 사원</th><th className="p-6 font-heavy">구매자</th><th className="p-6 text-right font-heavy">매출액</th><th className="p-6 text-right font-heavy">입금액</th><th className="p-6 text-center font-heavy">상태</th></tr></thead>
+                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6 font-heavy whitespace-nowrap">날짜</th><th className="p-6 font-heavy whitespace-nowrap">판매 사원</th><th className="p-6 font-heavy whitespace-nowrap">구매자</th><th className="p-6 text-right font-heavy whitespace-nowrap">매출액</th><th className="p-6 text-right font-heavy whitespace-nowrap">입금액</th><th className="p-6 text-center font-heavy whitespace-nowrap">상태</th></tr></thead>
                                 <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
                                     {filtered.map(r => (
                                         <tr key={r.id} className="hover:bg-slate-800/50 transition-colors font-heavy">
-                                            <td className="p-6 text-xs text-slate-600 font-mono">{formatDate(r.timestamp)}</td>
-                                            <td className="p-6 font-heavy"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.sellerSn})</div></td>
-                                            <td className="p-6 font-heavy"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.buyerSn})</div></td>
-                                            <td className="p-6 text-right font-heavy text-lg">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-right text-blue-400 font-heavy text-lg">{formatKRW(r.totalAmount * 0.5)}</td>
-                                            <td className="p-6 text-center font-heavy font-heavy">
+                                            <td className="p-6 text-xs text-slate-600 font-mono whitespace-nowrap">{formatDate(r.timestamp)}</td>
+                                            <td className="p-6 font-heavy whitespace-nowrap"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.sellerSn})</div></td>
+                                            <td className="p-6 font-heavy whitespace-nowrap"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.buyerSn})</div></td>
+                                            <td className="p-6 text-right font-heavy text-lg whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
+                                            <td className="p-6 text-right text-blue-400 font-heavy text-lg whitespace-nowrap">{formatKRW(r.totalAmount * 0.5)}</td>
+                                            <td className="p-6 text-center font-heavy font-heavy whitespace-nowrap">
                                                 <StatusBadge record={r} />
                                             </td>
                                         </tr>
@@ -534,7 +493,6 @@
             const [historyFilter, setHistoryFilter] = useState('all'); 
             const [historyOffset, setHistoryOffset] = useState(0);
 
-            // 주간 범위 계산 (History 탭용)
             const historyRange = useMemo(() => {
                 const now = new Date();
                 now.setDate(now.getDate() + (historyOffset * 7));
@@ -558,27 +516,10 @@
                 });
             }, [records, historyRange, historyFilter]);
 
-            const penaltySortedUsers = useMemo(() => {
-                const result = allUsers.filter(u => u.approved).map(u => {
-                    const score = records.filter(r => r.sellerUid === u.uid).reduce((s, r) => s + (parseInt(r.penaltyPoints) || 0), 0);
-                    return { ...u, penaltySum: score };
-                });
-                return {
-                    punished: result.filter(u => u.penaltySum > 0).sort((a,b) => b.penaltySum - a.penaltySum),
-                    clean: result.filter(u => u.penaltySum === 0).sort((a,b) => a.sn.localeCompare(b.sn))
-                };
-            }, [allUsers, records]);
-
             const auditorRanking = useMemo(() => {
                 const counts = {};
-                records.forEach(r => {
-                    if (r.auditorName) {
-                        counts[r.auditorName] = (counts[r.auditorName] || 0) + 1;
-                    }
-                });
-                return Object.entries(counts)
-                    .map(([name, count]) => ({ name, count }))
-                    .sort((a, b) => b.count - a.count);
+                records.forEach(r => { if (r.auditorName) counts[r.auditorName] = (counts[r.auditorName] || 0) + 1; });
+                return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
             }, [records]);
 
             return (
@@ -586,7 +527,6 @@
                     <div className="flex flex-wrap gap-4 border-b border-slate-800 pb-4">
                         <button onClick={()=>setAuditTab('queue')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'queue' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>감사 대기열 ({pending.length})</button>
                         <button onClick={()=>setAuditTab('history')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>처리 기록</button>
-                        <button onClick={()=>setAuditTab('penalty')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'penalty' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>패널티 관리</button>
                         <button onClick={()=>setAuditTab('team')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'team' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>감사팀 랭킹</button>
                     </div>
 
@@ -595,11 +535,18 @@
                             {pending.map(r => (
                                 <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl">
                                     <div className="flex-1 space-y-4">
-                                        <div className="text-xs text-slate-500 uppercase flex gap-4">
-                                            <span>장부 작성일: {formatDate(r.timestamp)}</span>
-                                            <span>판매자: {r.sellerNickname} ({r.sellerSn})</span>
+                                        <div className="flex flex-wrap gap-4 items-center">
+                                            <div className="bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+                                                <p className="text-[10px] text-slate-500 uppercase font-heavy">판매 사원</p>
+                                                <p className="text-lg font-heavy text-white">{r.sellerNickname} <span className="text-xs text-slate-400">({r.sellerSn})</span></p>
+                                            </div>
+                                            <div className="bg-blue-900/20 px-4 py-2 rounded-xl border border-blue-800/30">
+                                                <p className="text-[10px] text-blue-400 uppercase font-heavy">구매자 정보</p>
+                                                <p className="text-lg font-heavy text-blue-200">{r.buyerNickname} <span className="text-xs text-blue-400/70">({r.buyerSn})</span></p>
+                                            </div>
+                                            <div className="text-xs text-slate-500 uppercase">작성일: {formatDate(r.timestamp)}</div>
                                         </div>
-                                        <div className="flex gap-12 font-heavy">
+                                        <div className="flex gap-12 font-heavy pl-1">
                                             <div className="font-heavy"><p className="text-[10px] text-slate-600 uppercase">매출액</p><p className="text-2xl">{formatKRW(r.totalAmount)}</p></div>
                                             <div className="font-heavy"><p className="text-[10px] text-blue-500 uppercase">입금액</p><p className="text-2xl text-blue-400">{formatKRW(r.totalAmount * 0.5)}</p></div>
                                         </div>
@@ -610,6 +557,7 @@
                                     </div>
                                 </div>
                             ))}
+                            {pending.length === 0 && <div className="text-center py-20 text-slate-600 font-heavy">대기 중인 장부가 없습니다.</div>}
                         </div>
                     )}
 
@@ -627,63 +575,28 @@
                                 </div>
                             </div>
                             <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
-                                <table className="w-full text-left font-heavy">
-                                    <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6">작성일</th><th className="p-6">판매자</th><th className="p-6 text-center">상태</th><th className="p-6 text-center">감사관</th><th className="p-6 text-center">상세</th></tr></thead>
-                                    <tbody className="divide-y divide-slate-800 text-white font-heavy">
-                                        {history.map(r => (
-                                            <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
-                                                <td className="p-6 text-xs text-slate-500 font-mono">{formatDate(r.timestamp)}</td>
-                                                <td className="p-6 font-heavy font-heavy">{r.sellerNickname} <span className="text-[10px] opacity-40">({r.sellerSn})</span></td>
-                                                <td className="p-6 text-center">
-                                                    <StatusBadge record={r} />
-                                                </td>
-                                                <td className="p-6 text-center text-sm text-blue-400 font-heavy">{r.auditorName || '-'}</td>
-                                                <td className="p-6 text-center">
-                                                    <button onClick={()=>{ setViewItem({...r}); setEditMemo(r.auditMemo||''); setEditPenalty(r.penaltyPoints||0); }} className="p-2.5 bg-slate-800 hover:bg-indigo-600 rounded-xl transition-all"><Icon name="zoom-in" size={16}/></button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left font-heavy">
+                                        <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6 whitespace-nowrap">처리일</th><th className="p-6 whitespace-nowrap">판매자</th><th className="p-6 whitespace-nowrap">구매자</th><th className="p-6 text-center whitespace-nowrap">상태</th><th className="p-6 text-center whitespace-nowrap">감사관</th><th className="p-6 text-center whitespace-nowrap">상세</th></tr></thead>
+                                        <tbody className="divide-y divide-slate-800 text-white font-heavy">
+                                            {history.map(r => (
+                                                <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
+                                                    <td className="p-6 text-xs text-slate-500 font-mono whitespace-nowrap">{formatDate(r.auditedAt || r.timestamp)}</td>
+                                                    <td className="p-6 font-heavy whitespace-nowrap"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600">#{r.sellerSn}</div></td>
+                                                    <td className="p-6 font-heavy whitespace-nowrap"><div>{r.buyerNickname}</div><div className="text-[10px] text-blue-500">#{r.buyerSn}</div></td>
+                                                    <td className="p-6 text-center whitespace-nowrap">
+                                                        <StatusBadge record={r} />
+                                                    </td>
+                                                    <td className="p-6 text-center text-sm text-blue-400 font-heavy whitespace-nowrap">{r.auditorName || '-'}</td>
+                                                    <td className="p-6 text-center whitespace-nowrap">
+                                                        <button onClick={()=>{ setViewItem({...r}); setEditMemo(r.auditMemo||''); setEditPenalty(r.penaltyPoints||0); }} className="p-2.5 bg-slate-800 hover:bg-indigo-600 rounded-xl transition-all"><Icon name="zoom-in" size={16}/></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                    )}
-
-                    {tab === 'penalty' && (
-                        <div className="space-y-6">
-                            <section className="card shadow-2xl font-heavy border border-red-900/30">
-                                <h2 className="text-xl text-red-500 font-heavy mb-6 flex items-center gap-2 font-heavy"><Icon name="alert-circle"/> 집중 관리 사원 (패널티 1점 이상)</h2>
-                                <div className="grid grid-cols-1 gap-4">
-                                    {penaltySortedUsers.punished.map(u => (
-                                        <div key={u.uid} className="bg-slate-950 p-6 rounded-2xl border border-red-900/20 flex justify-between items-center group shadow-md">
-                                            <div className="flex items-center gap-4 font-heavy">
-                                                <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center font-heavy text-red-500 border border-red-500/20">{u.sn.slice(-2)}</div>
-                                                <div>
-                                                    <p className="text-xl text-white font-heavy">{u.nickname} <span className="text-xs text-slate-600 ml-1">#{u.sn}</span></p>
-                                                    <p className="text-xs text-red-400 uppercase tracking-widest mt-1">Status: Penalty Watch</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-8">
-                                                <div className="text-center"><p className="text-xs text-slate-600 uppercase">Points</p><p className="text-4xl text-red-500 font-black">{u.penaltySum}점</p></div>
-                                                <button onClick={()=>setPenaltyDetailUser(u)} className="btn bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white px-5 py-3 font-heavy border border-red-500/20">사유 확인</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {penaltySortedUsers.punished.length === 0 && <p className="text-center py-10 text-slate-600">패널티 사원이 없습니다.</p>}
-                                </div>
-                            </section>
-
-                            <section className="card bg-slate-900/50 font-heavy">
-                                <h2 className="text-sm text-slate-500 font-heavy mb-4 uppercase tracking-widest">일반 사원 리스트 (패널티 0점)</h2>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-                                    {penaltySortedUsers.clean.map(u => (
-                                        <div key={u.uid} className="bg-slate-950/50 p-3 rounded-xl border border-slate-800/50 flex flex-col items-center">
-                                            <span className="text-white text-sm font-heavy">{u.nickname}</span>
-                                            <span className="text-[10px] text-slate-600 font-bold">#{u.sn} / 0점</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
                         </div>
                     )}
 
@@ -694,16 +607,15 @@
                                 {auditorRanking.map((auditor, idx) => (
                                     <div key={idx} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex justify-between items-center group shadow-md transition-all hover:bg-slate-900">
                                         <div className="flex items-center gap-5">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-heavy text-xl ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'bg-slate-800 text-slate-500'}`}>{idx+1}</div>
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-heavy text-xl ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg' : 'bg-slate-800 text-slate-500'}`}>{idx+1}</div>
                                             <span className="text-2xl font-heavy text-white">{auditor.name}</span>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-[10px] text-slate-600 uppercase block tracking-widest">Processed Audits</span>
+                                            <span className="text-[10px] text-slate-600 uppercase block tracking-widest">Audits Processed</span>
                                             <span className="text-3xl text-indigo-400 font-black">{auditor.count}건</span>
                                         </div>
                                     </div>
                                 ))}
-                                {auditorRanking.length === 0 && <p className="text-center py-20 text-slate-600">데이터가 존재하지 않습니다.</p>}
                             </div>
                         </div>
                     )}
@@ -723,12 +635,11 @@
                     )}
 
                     {viewItem && (
-                        <Modal title="장부 상세 보고서" onClose={()=>setViewItem(null)}>
+                        <Modal title="장부 상세 분석 리포트" onClose={()=>setViewItem(null)}>
                             <div className="space-y-6 font-heavy">
-                                <div className="grid grid-cols-3 gap-4 font-heavy">
-                                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner"><p className="text-[10px] text-slate-600 uppercase mb-1">작성일</p><p className="text-sm font-heavy">{formatDate(viewItem.timestamp)}</p></div>
-                                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner"><p className="text-[10px] text-blue-600 uppercase mb-1">감사관</p><p className="text-sm text-blue-400 font-heavy">{viewItem.auditorName || '미지정'}</p></div>
-                                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner"><p className="text-[10px] text-slate-600 uppercase mb-1">처리일</p><p className="text-sm font-heavy">{viewItem.auditedAt ? formatDate(viewItem.auditedAt) : '-'}</p></div>
+                                <div className="grid grid-cols-2 gap-4 font-heavy">
+                                    <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-inner"><p className="text-[10px] text-slate-600 uppercase mb-1">작성일</p><p className="text-sm font-heavy">{formatDate(viewItem.timestamp)}</p></div>
+                                    <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-inner"><p className="text-[10px] text-blue-600 uppercase mb-1">감사관</p><p className="text-sm text-blue-400 font-heavy">{viewItem.auditorName || '미지정'}</p></div>
                                 </div>
                                 <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800"><p className="text-[10px] text-slate-500 uppercase mb-2">사원 기재 비고</p><p className="text-lg font-heavy leading-relaxed">{viewItem.note || '내용 없음'}</p></div>
                                 {viewItem.auditReason && <div className="bg-red-500/10 p-6 rounded-3xl border border-red-500/20 font-heavy"><p className="text-[10px] text-red-500 uppercase mb-2">보류 및 패널티 사유</p><p className="text-lg text-red-400 font-heavy leading-relaxed">{viewItem.auditReason}</p></div>}
@@ -751,30 +662,6 @@
                             </div>
                         </Modal>
                     )}
-
-                    {penaltyDetailUser && (
-                        <Modal title={`${penaltyDetailUser.nickname} 사원 패널티 상세 이력`} onClose={()=>setPenaltyDetailUser(null)}>
-                            <div className="space-y-4 font-heavy">
-                                {records.filter(r => r.sellerUid === penaltyDetailUser.uid && (parseInt(r.penaltyPoints) > 0)).map(r => (
-                                    <div key={r.id} className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800 font-heavy shadow-inner">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="space-y-1">
-                                                <div className="text-[10px] text-slate-600 uppercase tracking-widest">{formatDate(r.timestamp)} / 감사관: {r.auditorName || 'Unknown'}</div>
-                                                <div className="text-xl text-white font-heavy">Status: <StatusBadge record={r} /></div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-3xl text-red-500 font-black">{r.penaltyPoints || 0}점</div>
-                                            </div>
-                                        </div>
-                                        <div className="bg-slate-900/50 p-4 rounded-xl border border-red-900/20 mt-4">
-                                            <span className="text-[10px] text-red-500 block mb-1 uppercase font-bold">Penalty Reason</span>
-                                            <p className="text-red-400 font-heavy">{r.auditReason || '사유 없음'}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </Modal>
-                    )}
                 </div>
             );
         }
@@ -783,10 +670,6 @@
         function RankingView({ records }) {
             const data = useMemo(() => {
                 const s = {};
-                // 판매 랭킹 반영 로직: 
-                // 1. 감사완료 건 반영
-                // 2. 보류 사유가 없는 '감사대기' 건(신규 장부) 실시간 반영
-                // 3. '보류' 상태인 건은 제외 (완료 시 반영됨)
                 records.filter(r => r.status === 'completed' || (r.status === 'pending' && !r.auditReason)).forEach(r => {
                     if (!s[r.sellerUid]) s[r.sellerUid] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0, deposit: 0 };
                     s[r.sellerUid].count++; s[r.sellerUid].total += r.totalAmount; s[r.sellerUid].deposit += r.totalAmount * 0.5;
@@ -795,103 +678,160 @@
             }, [records]);
 
             return (
-                <div className="space-y-12 animate-fade-in font-bold">
-                    <div className="text-center space-y-4">
-                        <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2 animate-pulse font-heavy"><Icon name="award" size={64} className="text-yellow-500"/></div>
-                        <h2 className="text-5xl text-white font-heavy uppercase tracking-tighter italic font-heavy">설국 판매 명예의 전당</h2>
-                        <p className="text-slate-500 tracking-widest uppercase text-xs font-heavy">Real-time Performance Leaderboard</p>
+                <div className="space-y-8 animate-fade-in font-bold">
+                    <div className="text-center space-y-2 py-4">
+                        <div className="inline-block bg-yellow-500/10 p-4 rounded-2xl mb-2 animate-pulse"><Icon name="award" size={48} className="text-yellow-500"/></div>
+                        <h2 className="text-4xl text-white font-heavy uppercase tracking-tighter italic">설국 판매 명예의 전당</h2>
+                        <p className="text-slate-500 tracking-widest uppercase text-[10px] font-heavy">Real-time Performance Leaderboard</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end pt-16 relative font-heavy">
+
+                    <div className="flex flex-wrap justify-center items-end gap-4 md:gap-8 pb-4">
                         {[1, 0, 2].map((idx) => {
-                            const item = data[idx]; if (!item) return <div key={idx} className="hidden md:block"></div>;
-                            const colors = ['border-yellow-500 text-yellow-500 bg-yellow-500/10 shadow-yellow-900/20', 'border-slate-300 text-slate-300 bg-slate-300/10 shadow-slate-900/20', 'border-amber-600 text-amber-600 bg-amber-600/10 shadow-amber-900/20'];
-                            const heights = ['h-80', 'h-64', 'h-52'];
+                            const item = data[idx]; if (!item) return null;
+                            const configs = [
+                                { color: 'border-yellow-500', bg: 'bg-yellow-500/5', shadow: 'shadow-yellow-900/10', h: 'h-56', rank: '1위', icon: '👑' },
+                                { color: 'border-slate-400', bg: 'bg-slate-400/5', shadow: 'shadow-slate-900/10', h: 'h-48', rank: '2위', icon: '🥈' },
+                                { color: 'border-amber-700', bg: 'bg-amber-700/5', shadow: 'shadow-amber-900/10', h: 'h-44', rank: '3위', icon: '🥉' }
+                            ];
+                            const cfg = configs[idx];
                             return (
-                                <div key={idx} className={`flex flex-col items-center gap-4 order-${idx} font-heavy`}>
-                                    <div className={`w-full max-w-[260px] ${heights[idx]} ${colors[idx]} border-t-8 rounded-t-[3rem] flex flex-col items-center justify-end pb-12 relative shadow-2xl transition-all hover:scale-105 font-heavy`}>
-                                        <div className="absolute -top-16 text-8xl font-heavy">{idx === 0 ? '👑' : idx === 1 ? '🥈' : '🥉'}</div>
-                                        <span className="text-6xl mb-2 italic tracking-tighter font-heavy">{idx === 0 ? 1 : idx === 1 ? 2 : 3}위</span>
-                                        <span className="text-3xl text-white font-heavy">{item.name}</span>
-                                        <span className="text-xs opacity-40 font-mono font-heavy">({item.sn})</span>
-                                    </div>
+                                <div key={idx} className={`w-full max-w-[200px] ${cfg.h} ${cfg.bg} border-t-4 ${cfg.color} rounded-t-3xl flex flex-col items-center justify-center relative shadow-xl transition-all hover:-translate-y-1 hover:brightness-125`}>
+                                    <div className="absolute -top-6 text-4xl">{cfg.icon}</div>
+                                    <span className={`text-3xl mb-1 italic font-black ${idx === 0 ? 'text-yellow-500' : 'text-slate-400'}`}>{cfg.rank}</span>
+                                    <span className="text-xl text-white font-heavy truncate w-full text-center px-2">{item.name}</span>
+                                    <span className="text-[10px] opacity-40 font-mono">#{item.sn}</span>
                                 </div>
                             );
                         })}
                     </div>
-                    <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
-                        <table className="w-full text-left font-heavy">
-                            <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-800 font-heavy"><th>순위</th><th>사원명</th><th className="text-center">판매 건수</th><th className="text-right">총 매출액</th><th className="text-right text-blue-400 font-heavy">공계 입금액</th></tr></thead>
-                            <tbody className="divide-y divide-slate-800 text-2xl text-white tracking-tighter font-heavy">
-                                {data.map((item, idx) => (
-                                    <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/5' : ''} hover:bg-slate-800/50 transition-colors font-heavy`}>
-                                        <td className="p-6 font-heavy"><span className={`w-12 h-12 rounded-2xl flex items-center justify-center text-base shadow-inner font-heavy ${idx === 0 ? 'bg-yellow-500 text-black shadow-yellow-400/20' : idx === 1 ? 'bg-slate-400 text-black shadow-slate-200/20' : idx === 2 ? 'bg-amber-700 text-white shadow-amber-400/20' : 'bg-slate-800 text-slate-500'}`}>{idx+1}</span></td>
-                                        <td className="p-6 font-heavy font-heavy"><div>{item.name}</div><div className="text-xs text-slate-600 font-bold">#{item.sn}</div></td>
-                                        <td className="p-6 text-center"><span className="text-blue-500 font-black text-4xl">{item.count}</span><span className="text-sm text-slate-600 ml-2 uppercase font-bold">건</span></td>
-                                        <td className="p-6 text-right font-heavy font-heavy">{formatKRW(item.total)}</td>
-                                        <td className="p-6 text-right text-blue-400 font-heavy font-heavy">{formatKRW(item.deposit)}</td>
+
+                    <div className="card p-0 overflow-hidden font-heavy shadow-2xl border-slate-800">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left font-heavy">
+                                <thead className="bg-slate-800/50 text-slate-500 text-[10px] uppercase tracking-widest font-heavy">
+                                    <tr className="border-b border-slate-800">
+                                        <th className="px-6 py-4 whitespace-nowrap">순위</th>
+                                        <th className="px-6 py-4 whitespace-nowrap">사원명</th>
+                                        <th className="px-6 py-4 text-center whitespace-nowrap">판매 건수</th>
+                                        <th className="px-6 py-4 text-right whitespace-nowrap">총 매출액</th>
+                                        <th className="px-6 py-4 text-right text-blue-400 font-heavy whitespace-nowrap">공계 입금액</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/50 text-xl text-white tracking-tighter">
+                                    {data.map((item, idx) => (
+                                        <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/[0.02]' : ''} hover:bg-slate-800/50 transition-colors`}>
+                                            <td className="px-6 py-4">
+                                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : idx === 1 ? 'bg-slate-400 text-black' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-500'}`}>
+                                                    {idx+1}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 font-heavy">
+                                                <div className="text-lg whitespace-nowrap font-heavy">{item.name}</div>
+                                                <div className="text-[10px] text-slate-600 font-bold">#{item.sn}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center whitespace-nowrap">
+                                                <span className="text-blue-500 font-black text-3xl">{item.count}</span>
+                                                <span className="text-[10px] text-slate-600 ml-1 uppercase font-bold">건</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-heavy text-lg whitespace-nowrap">{formatKRW(item.total)}</td>
+                                            <td className="px-6 py-4 text-right text-blue-400 font-heavy text-lg whitespace-nowrap">{formatKRW(item.deposit)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
         }
 
-        // --- Admin View ---
-        function AdminView({ allUsers, config, setConfig }) {
+        // --- Admin/Audit Member Management View ---
+        function AdminView({ allUsers, config, setConfig, currentUser }) {
             const [showPw, setShowPw] = useState({});
-            const [editNick, setEditNick] = useState(null);
-            const [tempNick, setTempNick] = useState('');
-            const [noticeIn, setNoticeIn] = useState(config.eventNotice || "");
+            const isAdmin = currentUser.role === ROLES.ADMIN;
 
-            const handleNoticeSave = async () => {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {...config, eventNotice: noticeIn});
-                alert('공지사항이 정상적으로 반영되었습니다.');
+            const updateUser = async (uid, data) => {
+                if(!isAdmin) return alert("관리자만 수정할 수 있습니다.");
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), data);
             };
 
-            const updateUser = async (uid, data) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), data);
-            const deleteUser = async (uid) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid));
+            const getRoleStyles = (role) => {
+                switch(role) {
+                    case ROLES.ADMIN: return "bg-amber-500 text-black";
+                    case ROLES.AUDIT: return "bg-indigo-600 text-white";
+                    default: return "bg-slate-700 text-slate-200";
+                }
+            };
 
             return (
                 <div className="space-y-10 animate-fade-in font-bold">
-                    <section className="card shadow-xl space-y-8 font-heavy">
-                        <div className="space-y-4 font-heavy">
-                            <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-heavy"><Icon name="megaphone" /> 메인 공지 관리</h2>
-                            <textarea className="input-base h-32 font-bold text-white font-heavy" value={noticeIn} onChange={(e)=>setNoticeIn(e.target.value)} placeholder="대시보드 상단 배너 내용을 입력하세요." />
-                            <div className="flex justify-between items-center">
-                                <p className="text-[10px] text-slate-600 font-heavy uppercase tracking-wider">Announcement System Control Panel</p>
-                                <button onClick={handleNoticeSave} className="btn btn-blue px-8 py-3 font-heavy shadow-lg">공지 업데이트</button>
-                            </div>
-                        </div>
-                        <div className="h-px bg-slate-800"></div>
-                        <div className="space-y-4 font-heavy">
-                            <h2 className="text-2xl text-indigo-400 flex items-center gap-3 font-heavy"><Icon name="calendar" /> 주간 정산 기준일 설정</h2>
-                            <div className="flex flex-wrap gap-2 font-heavy">
-                                {WEEK_DAYS.map((day, idx) => (
-                                    <button key={day} onClick={async ()=>await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {...config, weekStartDay: idx})} className={`px-5 py-3 rounded-xl transition-all border font-heavy ${config.weekStartDay === idx ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>매주 {day}</button>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
                     <section className="space-y-6 font-heavy">
-                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy px-2"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
+                        <div className="flex items-center justify-between px-2">
+                            <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
+                            {!isAdmin && <span className="text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">읽기 전용 모드</span>}
+                        </div>
                         <div className="card p-0 overflow-hidden shadow-2xl font-heavy">
-                            <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th>SN</th><th>닉네임</th><th className="text-center">PW</th><th className="text-center">권한</th><th className="text-right">삭제</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy">
-                                    {allUsers.sort((a,b)=>a.sn.localeCompare(b.sn)).map(u => (
-                                        <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors font-heavy">
-                                            <td className="p-6 font-heavy font-heavy"><div className="w-20 h-16 bg-slate-950 rounded-xl flex items-center justify-center font-heavy text-blue-500 border border-slate-800">{u.sn}</div></td>
-                                            <td className="p-6 font-heavy font-heavy">{editNick === u.uid ? ( <div className="flex gap-2"><input className="input-base py-2 w-32 font-heavy" value={tempNick} onChange={e=>setTempNick(e.target.value)}/><button onClick={async ()=>{await updateUser(u.uid, {nickname:tempNick}); setEditNick(null);}} className="btn btn-blue px-3 py-1 text-xs">확인</button></div> ) : ( <div className="text-2xl flex items-center gap-2 font-heavy">{u.nickname} <button onClick={()=>{setEditNick(u.uid); setTempNick(u.nickname);}} className="text-slate-600 hover:text-blue-500"><Icon name="edit-3" size={14}/></button></div> )}</td>
-                                            <td className="p-6 text-center font-heavy"><div className="flex items-center justify-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 w-max mx-auto font-heavy font-heavy"><span className="text-lg tracking-[0.4em] font-heavy font-heavy">{showPw[u.uid] ? u.password : '****'}</span><button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors"><Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={18}/></button></div></td>
-                                            <td className="p-6 text-center font-heavy font-heavy"><div className="flex flex-wrap justify-center gap-1.5">{!u.approved && <button onClick={()=>updateUser(u.uid, {approved:true})} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-heavy shadow-md">승인</button>}{u.approved && [ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN].map(role => ( <button key={role} onClick={()=>updateUser(u.uid, {role})} className={`px-2 py-1.5 rounded-lg text-[10px] font-heavy transition-all ${u.role === role ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-950 text-slate-500 border border-slate-800'}`}>{role}</button> )) }</div></td>
-                                            <td className="p-6 text-right font-heavy"><button onClick={async ()=>{if(window.confirm(`${u.nickname}(${u.sn}) 사원을 명단에서 영구 삭제하시겠습니까?`)) await deleteUser(u.uid);}} disabled={u.sn === '0000'} className={`p-2 transition-colors bg-red-500/5 rounded-xl ${u.sn === '0000' ? 'opacity-20 cursor-not-allowed' : 'text-red-900 hover:text-red-500'}`}><Icon name="trash-2" size={18}/></button></td>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left font-heavy">
+                                    <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase tracking-widest font-heavy">
+                                        <tr className="border-b border-slate-700">
+                                            <th className="p-6 whitespace-nowrap">고유번호</th>
+                                            <th className="p-6 whitespace-nowrap">닉네임 / 가입일</th>
+                                            <th className="p-6 text-center whitespace-nowrap">비밀번호</th>
+                                            <th className="p-6 text-center whitespace-nowrap">부여 권한</th>
+                                            {isAdmin && <th className="p-6 text-right whitespace-nowrap">제명</th>}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800 text-white font-heavy">
+                                        {allUsers.sort((a,b)=>a.sn.localeCompare(b.sn)).map(u => (
+                                            <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors font-heavy">
+                                                <td className="p-6">
+                                                    <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-center font-mono text-blue-500 text-lg shadow-inner">
+                                                        {u.sn}
+                                                    </div>
+                                                </td>
+                                                <td className="p-6 whitespace-nowrap">
+                                                    <div className="text-2xl font-black">{u.nickname}</div>
+                                                    <div className="text-[10px] text-slate-600 mt-1 uppercase tracking-tighter">Joined: {formatDate(u.joinDate)}</div>
+                                                </td>
+                                                <td className="p-6 text-center">
+                                                    <div className="flex items-center justify-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner">
+                                                        <span className="text-lg tracking-[0.4em] font-mono text-slate-400">{showPw[u.uid] ? u.password : '****'}</span>
+                                                        <button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors">
+                                                            <Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={18}/>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                <td className="p-6 text-center">
+                                                    <div className="flex flex-wrap justify-center gap-2 max-w-[280px] mx-auto">
+                                                        {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN].map(role => (
+                                                            <button 
+                                                                key={role} 
+                                                                onClick={() => isAdmin && updateUser(u.uid, {role})}
+                                                                disabled={!isAdmin}
+                                                                className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${u.role === role ? getRoleStyles(role) + ' shadow-lg scale-105' : 'bg-slate-950 text-slate-600 border border-slate-800 hover:border-slate-600'} ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}
+                                                            >
+                                                                {role}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                {isAdmin && (
+                                                    <td className="p-6 text-right">
+                                                        <button 
+                                                            onClick={async ()=>{if(window.confirm(`${u.nickname}님을 정말 삭제하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid));}} 
+                                                            disabled={u.sn === '0000'}
+                                                            className={`p-3 transition-colors bg-red-500/5 rounded-xl ${u.sn === '0000' ? 'opacity-20 cursor-not-allowed' : 'text-red-900 hover:text-red-500 hover:bg-red-500/10'}`}
+                                                        >
+                                                            <Icon name="trash-2" size={18}/>
+                                                        </button>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </section>
                 </div>
