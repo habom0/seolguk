@@ -3,19 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷 - 실시간 연동판</title>
-    
-    <!-- 1. 필수 라이브러리 (React, Babel, Tailwind, Lucide) -->
+    <title>설국 인트라넷 - 데이터베이스 통합판</title>
+    <!-- React & Libraries -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <!-- 2. 파이어베이스 SDK (전역 변수 방식 - 가장 안정적) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+        window.FirebaseSDK = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, where };
+    </script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
@@ -24,30 +27,27 @@
         .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 1.5rem; padding: 1.5rem; transition: 0.3s; }
         .input-base { background: #020617; border: 1px solid #1e293b; border-radius: 1rem; padding: 1rem; outline: none; width: 100%; transition: 0.2s; color: white; }
         .input-base:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 1rem; transition: 0.2s; cursor: pointer; font-weight: 800; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 1rem; transition: 0.2s; cursor: pointer; font-weight: 800; border: none; }
         .btn-blue { background: #2563eb; color: white; }
         .btn-blue:hover { background: #1d4ed8; }
         .btn-indigo { background: #4f46e5; color: white; }
-        .btn-indigo:hover { background: #4338ca; }
         .btn-green { background: #16a34a; color: white; }
-        .btn-green:hover { background: #15803d; }
         .btn-red { background: rgba(220, 38, 38, 0.1); color: #ef4444; border: 1px solid rgba(220, 38, 38, 0.2); }
         .btn-red:hover { background: #dc2626; color: white; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
         .badge { font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: 0.5rem; font-weight: 900; }
         .event-gradient { background: linear-gradient(90deg, #1e293b 0%, #1e3a8a 50%, #1e293b 100%); }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #020617; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback } = React;
 
-        // --- 파이어베이스 설정 ---
+        // --- Firebase 구성 ---
         const firebaseConfig = {
             apiKey: "AIzaSyBAWsHBAAFXzf5dCETcE6b8rvA2vmkJB08",
             authDomain: "seolguk-net.firebaseapp.com",
@@ -57,15 +57,6 @@
             appId: "1:108374145265:web:3541eeddd6bc90ac289150"
         };
 
-        // 초기화
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const appId = "seolguk-v1";
-
-        // --- 설정 상수 ---
         const PRICES = { fullpack: 6400000000, painkiller: 3500000, honeyjelly: 80000000, honeystick: 80000000, parachute: 5000000, elixir: 4000000 };
         const ITEM_INFO = {
             fullpack: { label: '풀패키지', max: 1, emoji: '📦', desc: '1세트' },
@@ -78,78 +69,132 @@
         const ROLES = { EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자' };
         const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
-        // --- 공용 컴포넌트 ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-            useEffect(() => { if (window.lucide) lucide.createIcons(); }, [name, size, className]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
-
+        // --- 공용 헬퍼 함수 ---
         const formatKRW = (amount) => {
             if (amount === 0) return "0원";
             const eok = Math.floor(amount / 100000000);
-            const man = Math.floor((amount % 100000000) / 10000);
+            const remain = amount % 100000000;
+            const man = Math.floor(remain / 10000);
             let result = "";
             if (eok > 0) result += `${eok}억 `;
             if (man > 0) result += (man >= 1000) ? `${man / 1000}천` : `${man.toLocaleString()}만`;
             return result.trim() || "0원";
         };
 
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { if (window.lucide) lucide.createIcons(); }, [name, size, className]);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        };
+
         const Modal = ({ title, children, onClose }) => {
-            useEffect(() => {
-                const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
-                window.addEventListener('keydown', handleEsc);
-                return () => window.removeEventListener('keydown', handleEsc);
-            }, [onClose]);
             return (
-                <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+                <div className="modal-overlay animate-fade-in" onClick={(e) => e.target === e.currentTarget && onClose()}>
                     <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-slate-700">
                         <button onClick={onClose} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><Icon name="x" size={24}/></button>
-                        <h3 className="text-2xl font-heavy mb-6 flex items-center gap-2 text-white">{title}</h3>
+                        <h3 className="text-2xl font-heavy mb-6 flex items-center gap-2">{title}</h3>
                         {children}
                     </div>
                 </div>
             );
         };
 
+        const Toast = ({ message, type = "info", onClose }) => {
+            useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
+            const colors = type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            return <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 ${colors} text-white px-6 py-3 rounded-2xl shadow-2xl z-[200] font-heavy`}>{message}</div>;
+        };
+
         // --- 메인 앱 ---
         function App() {
-            const [user, setUser] = useState(null);
-            const [activeTab, setActiveTab] = useState('dashboard');
+            const [db, setDb] = useState(null);
+            const [auth, setAuth] = useState(null);
+            const [fbUser, setFbUser] = useState(null); // Firebase Auth User
+            const [user, setUser] = useState(null); // Firestore App User Data
+            const [loading, setLoading] = useState(true);
+            const [toast, setToast] = useState(null);
+
             const [records, setRecords] = useState([]);
             const [allUsers, setAllUsers] = useState([]);
             const [config, setConfig] = useState({ weekStartDay: 1, eventNotice: "" });
+            
+            const [activeTab, setActiveTab] = useState('dashboard');
             const [weekOffset, setWeekOffset] = useState(0);
             const [authMode, setAuthMode] = useState('login');
-            const [loading, setLoading] = useState(true);
 
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'seolguk-net';
+
+            const showMsg = (msg, type = "info") => setToast({ msg, type });
+
+            // 초기화
             useEffect(() => {
-                // 파이어베이스 익명 로그인 실행
-                auth.signInAnonymously().catch(err => console.error("Auth failed:", err));
+                const initFirebase = async () => {
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore } = window.FirebaseSDK;
+                    const app = initializeApp(firebaseConfig);
+                    const authInstance = getAuth(app);
+                    const dbInstance = getFirestore(app);
+                    
+                    setAuth(authInstance);
+                    setDb(dbInstance);
 
-                // 실시간 데이터 감시
-                const unsubUsers = db.collection('seolguk').doc(appId).collection('users').onSnapshot(snap => {
-                    const list = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                    // 1. Auth 먼저 실행 (Rule 3)
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(authInstance, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(authInstance);
+                    }
+
+                    onAuthStateChanged(authInstance, (u) => {
+                        setFbUser(u);
+                        if (!u) setLoading(false);
+                    });
+                };
+                initFirebase();
+            }, []);
+
+            // 실시간 데이터 구독 (Rule 1 & 2 준수)
+            useEffect(() => {
+                if (!fbUser || !db) return;
+
+                const { collection, doc, onSnapshot, query } = window.FirebaseSDK;
+
+                // 1. 공용 설정 구독
+                const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config');
+                const unsubConfig = onSnapshot(configRef, (snap) => {
+                    if (snap.exists()) setConfig(snap.data());
+                    else setDoc(configRef, { weekStartDay: 1, eventNotice: "" });
+                }, (err) => console.error("Config Error:", err));
+
+                // 2. 사원 목록 구독
+                const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+                const unsubUsers = onSnapshot(usersRef, (snap) => {
+                    const list = snap.docs.map(d => ({ ...d.data(), id: d.id }));
                     setAllUsers(list);
-                    const savedSn = localStorage.getItem('seolguk_sn');
-                    if (savedSn) {
-                        const found = list.find(u => u.sn === savedSn);
-                        if (found && found.approved) setUser(found);
+                    
+                    // 현재 접속한 SN의 유저 데이터 최신화
+                    const localUser = JSON.parse(localStorage.getItem('seolguk_session'));
+                    if (localUser) {
+                        const updated = list.find(u => u.sn === localUser.sn);
+                        if (updated) {
+                            if (!updated.approved) {
+                                setUser(null);
+                                localStorage.removeItem('seolguk_session');
+                            } else {
+                                setUser(updated);
+                            }
+                        }
                     }
                     setLoading(false);
-                }, err => console.error("Firestore Users Error:", err));
+                }, (err) => console.error("Users Error:", err));
 
-                const unsubRecords = db.collection('seolguk').doc(appId).collection('records').onSnapshot(snap => {
-                    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                    setRecords(list);
-                }, err => console.error("Firestore Records Error:", err));
+                // 3. 전체 장부 구독
+                const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'records');
+                const unsubRecords = onSnapshot(recordsRef, (snap) => {
+                    const list = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                    setRecords(list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+                }, (err) => console.error("Records Error:", err));
 
-                const unsubConfig = db.collection('seolguk').doc(appId).collection('config').doc('main').onSnapshot(snap => {
-                    if (snap.exists) setConfig(snap.data());
-                });
-
-                return () => { unsubUsers(); unsubRecords(); unsubConfig(); };
-            }, []);
+                return () => { unsubConfig(); unsubUsers(); unsubRecords(); };
+            }, [fbUser, db, appId]);
 
             const weekRange = useMemo(() => {
                 const now = new Date();
@@ -163,52 +208,70 @@
                 return { start, end };
             }, [weekOffset, config.weekStartDay]);
 
-            if (loading) return (
-                <div className="min-h-screen flex flex-col items-center justify-center text-blue-500 font-heavy gap-4">
-                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p>설국 시스템 보안 검사 중...</p>
-                </div>
-            );
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const sn = fd.get('sn');
+                const pw = fd.get('password');
+                
+                const found = allUsers.find(u => u.sn === sn && u.password === pw);
+                if (!found) return showMsg("정보가 올바르지 않거나 승인 대기 중입니다.", "error");
+                if (!found.approved) return showMsg("관리자의 승인이 필요한 계정입니다.", "error");
+                
+                setUser(found);
+                localStorage.setItem('seolguk_session', JSON.stringify({sn: found.sn}));
+                showMsg(`${found.nickname}님 환영합니다!`);
+            };
+
+            const handleSignup = async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const sn = fd.get('sn');
+                const { doc, setDoc } = window.FirebaseSDK;
+
+                if (allUsers.find(u => u.sn === sn)) return showMsg("이미 등록된 고유번호입니다.", "error");
+
+                const newUser = {
+                    sn,
+                    nickname: fd.get('nickname'),
+                    password: fd.get('password'),
+                    role: sn === '0000' ? ROLES.ADMIN : ROLES.EMPLOYEE,
+                    approved: sn === '0000',
+                    joinDate: new Date().toISOString(),
+                    uid: crypto.randomUUID()
+                };
+
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', newUser.uid), newUser);
+                    showMsg("가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.");
+                    setAuthMode('login');
+                } catch (err) {
+                    showMsg("오류가 발생했습니다.", "error");
+                }
+            };
+
+            if (loading) return <div className="min-h-screen flex items-center justify-center text-blue-500 font-heavy">데이터를 불러오는 중...</div>;
 
             if (!user) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center p-4 bg-[#020617]">
+                    <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
+                        {toast && <Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)} />}
                         <div className="card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
-                            <h1 className="text-3xl font-heavy mb-8 italic text-white tracking-tighter">설국 인트라넷</h1>
-                            <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800 pb-2">
+                            <h1 className="text-3xl font-heavy mb-8">설국 인트라넷 DB</h1>
+                            <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup'].map(m => (
-                                    <button key={m} onClick={()=>setAuthMode(m)} className={`transition-all font-heavy ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500'}`}>
+                                    <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
                                         {m === 'login' ? '로그인' : '가입신청'}
                                     </button>
                                 ))}
                             </div>
-                            <form className="space-y-4" onSubmit={async (e) => {
-                                e.preventDefault();
-                                const fd = new FormData(e.target);
-                                const sn = fd.get('sn');
-                                const pw = fd.get('password');
-                                if (authMode === 'login') {
-                                    const found = allUsers.find(u => u.sn === sn && u.password === pw);
-                                    if (found) {
-                                        if(!found.approved) return alert('관리자 승인 대기 중입니다.');
-                                        setUser(found);
-                                        localStorage.setItem('seolguk_sn', sn);
-                                    } else alert('정보가 올바르지 않습니다.');
-                                } else {
-                                    if (allUsers.find(u => u.sn === sn)) return alert('이미 등록된 번호입니다.');
-                                    await db.collection('seolguk').doc(appId).collection('users').doc(`user_${sn}`).set({
-                                        sn, nickname: fd.get('nickname'), password: pw,
-                                        role: sn === '0000' ? ROLES.ADMIN : ROLES.EMPLOYEE,
-                                        approved: sn === '0000', createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                                    });
-                                    alert('가입 신청 완료! 관리자 승인 후 이용 가능합니다.'); setAuthMode('login');
-                                }
-                            }}>
+                            <form className="space-y-4" onSubmit={authMode === 'login' ? handleLogin : handleSignup}>
                                 <input name="sn" placeholder="고유번호" className="input-base text-center font-bold" required />
                                 {authMode === 'signup' && <input name="nickname" placeholder="닉네임" className="input-base text-center font-bold" required />}
                                 <input name="password" type="password" maxLength="4" placeholder="비밀번호 (숫자 4자리)" className="input-base text-center font-bold" required />
-                                <button className="btn btn-blue w-full py-4 text-xl font-heavy shadow-blue-900/40 shadow-lg mt-4">입장하기</button>
+                                <button className="btn btn-blue w-full py-4 text-xl font-heavy shadow-blue-900/40 shadow-lg">입장하기</button>
+                                {authMode !== 'login' && <p className="text-red-500 text-xs animate-pulse font-bold mt-4">가입 후 관리자의 승인이 있어야 로그인이 가능합니다.</p>}
                             </form>
                         </div>
                     </div>
@@ -216,17 +279,17 @@
             }
 
             return (
-                <div className="min-h-screen flex flex-col md:flex-row">
-                    {/* Sidebar */}
+                <div className="min-h-screen flex flex-col md:flex-row animate-fade-in">
+                    {toast && <Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)} />}
                     <nav className="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-5 flex flex-col gap-2 z-20 sticky top-0 md:h-screen">
-                        <div className="flex items-center gap-3 py-6 px-2"><div className="bg-blue-600 p-2 rounded-xl text-white">❄️</div><span className="font-heavy text-xl uppercase tracking-tighter italic">설국 인트라넷</span></div>
+                        <div className="flex items-center gap-3 py-6 px-2"><div className="bg-blue-600 p-2 rounded-xl">❄️</div><span className="font-heavy text-xl uppercase tracking-tighter">설국 인트라넷</span></div>
                         <div className="space-y-1 mb-6 flex-1 font-bold">
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
-                            <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger'} icon="clipboard-list" label="전체 장부" />
+                            <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
-                            {user.role !== ROLES.EMPLOYEE && (
-                                <div className="mt-8 pt-4 border-t border-slate-800/50">
-                                    <p className="text-[10px] text-slate-600 uppercase font-heavy px-4 mb-3 tracking-widest text-center">관리 시스템</p>
+                            {(user.role !== ROLES.EMPLOYEE) && (
+                                <div className="mt-8 pt-4 border-t border-slate-800/50 text-center">
+                                    <p className="text-[10px] text-slate-600 uppercase font-heavy px-4 mb-3 tracking-widest">관리 시스템</p>
                                     <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo" />
                                 </div>
                             )}
@@ -236,18 +299,17 @@
                             <div className="card bg-slate-950 p-4 border-slate-800 mt-2">
                                 <div className="text-sm font-heavy truncate text-white">{user.nickname}</div>
                                 <div className="text-[10px] text-blue-500 font-bold">{user.role} ({user.sn})</div>
-                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_sn');}} className="mt-3 w-full py-1.5 bg-slate-800 hover:bg-red-900/20 text-red-400 rounded-lg text-xs transition-all font-bold font-heavy">로그아웃</button>
+                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_session');}} className="mt-3 w-full py-1.5 bg-slate-800 hover:bg-red-900/20 text-red-400 rounded-lg text-xs transition-all font-bold">로그아웃</button>
                             </div>
                         </div>
                     </nav>
 
-                    {/* Main Content */}
-                    <main className="flex-1 p-5 md:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
-                        {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} />}
+                    <main className="flex-1 p-5 md:p-10 max-w-7xl mx-auto w-full">
+                        {activeTab === 'dashboard' && <DashboardView user={user} db={db} appId={appId} records={records} config={config} showMsg={showMsg} />}
                         {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
                         {activeTab === 'ranking' && <RankingView records={records} />}
-                        {activeTab === 'audit' && <AuditView records={records} user={user} range={weekRange} allUsers={allUsers} />}
-                        {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} />}
+                        {activeTab === 'audit' && <AuditView records={records} db={db} appId={appId} user={user} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allUsers={allUsers} showMsg={showMsg} />}
+                        {activeTab === 'admin' && <AdminView allUsers={allUsers} db={db} appId={appId} config={config} showMsg={showMsg} />}
                     </main>
                 </div>
             );
@@ -259,87 +321,122 @@
             </button>
         );
 
-        function DashboardView({ user, records, config }) {
+        // --- Views ---
+        function DashboardView({ user, db, appId, records, config, showMsg }) {
             const initialForm = { buyerSn: '', buyerNickname: '', note: '', fullpack: 0, painkiller: 0, honeyjelly: 0, honeystick: 0, parachute: 0, elixir: 0 };
             const [form, setForm] = useState(initialForm);
             const [showPrices, setShowPrices] = useState(false);
-            
+            const [editing, setEditing] = useState(null);
+            const [reason, setReason] = useState("");
+
             const total = useMemo(() => Object.keys(PRICES).reduce((s, k) => s + (parseInt(form[k]) || 0) * PRICES[k], 0), [form]);
             const isExceeded = useMemo(() => Object.keys(ITEM_INFO).some(k => (parseInt(form[k]) || 0) > ITEM_INFO[k].max), [form]);
 
             const submitForm = async (e) => {
                 e.preventDefault();
                 if (total === 0 || isExceeded) return;
+                const { collection, addDoc } = window.FirebaseSDK;
                 const newRec = { 
-                    ...form, sellerUid: `user_${user.sn}`, sellerNickname: user.nickname, sellerSn: user.sn, 
-                    totalAmount: total, status: 'pending', auditReason: '', 
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), timestamp: new Date().toISOString() 
+                    ...form, 
+                    timestamp: new Date().toISOString(), 
+                    sellerUid: user.uid, 
+                    sellerNickname: user.nickname, 
+                    sellerSn: user.sn, 
+                    totalAmount: total, 
+                    status: 'pending', 
+                    auditReason: '', 
+                    auditMemo: '', 
+                    isEdited: false, 
+                    penaltyPoints: 0 
                 };
                 try {
-                    await db.collection('seolguk').doc(appId).collection('records').add(newRec);
-                    setForm(initialForm); alert("장부가 성공적으로 제출되었습니다.");
-                } catch(e) { alert("제출에 실패했습니다. 관리자에게 문의하세요."); }
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'records'), newRec);
+                    setForm(initialForm);
+                    showMsg("장부가 제출되었습니다.");
+                } catch(e) { showMsg("제출 실패", "error"); }
+            };
+
+            const handleEditSave = async (e) => {
+                e.preventDefault();
+                if(!reason.trim()) return showMsg("수정 사유를 입력하세요.", "error");
+                const { doc, updateDoc } = window.FirebaseSDK;
+                let nt = 0; Object.keys(ITEM_INFO).forEach(k => nt += (parseInt(editing[k])||0) * PRICES[k]);
+                
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', editing.id), {
+                        ...editing,
+                        totalAmount: nt,
+                        note: `${editing.note || ""}\n[수정: ${reason}]`.trim(),
+                        isEdited: true,
+                        status: 'pending'
+                    });
+                    setEditing(null); setReason("");
+                    showMsg("수정 완료! 재감사가 진행됩니다.");
+                } catch(e) { showMsg("수정 실패", "error"); }
             };
 
             return (
-                <div className="space-y-6 font-bold">
+                <div className="space-y-6 animate-fade-in font-bold">
                     {config.eventNotice && (
-                        <div className="event-gradient p-5 rounded-2xl border border-blue-500/30 flex items-center justify-center gap-3 shadow-xl animate-pulse">
-                            <Icon name="sparkles" className="text-yellow-400" />
+                        <div className="event-gradient p-5 rounded-2xl border border-blue-500/30 flex items-center justify-center gap-3 shadow-xl">
+                            <Icon name="sparkles" className="text-yellow-400 animate-pulse" />
                             <p className="text-white text-lg font-heavy text-center">{config.eventNotice}</p>
-                            <Icon name="sparkles" className="text-yellow-400" />
+                            <Icon name="sparkles" className="text-yellow-400 animate-pulse" />
                         </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div onClick={()=>setShowPrices(true)} className="card cursor-pointer hover:bg-slate-800 flex justify-between items-center group shadow-lg transition-all">
-                            <div className="flex items-center gap-4"><div className="bg-blue-600/10 p-4 rounded-2xl group-hover:bg-blue-600/20"><Icon name="scroll" className="text-blue-500" size={32}/></div><div><p className="text-slate-500 text-xs font-heavy uppercase">Guide</p><p className="text-xl font-heavy text-white">가격표 및 배달료 확인</p></div></div>
+                        <div onClick={()=>setShowPrices(true)} className="card cursor-pointer hover:bg-slate-800 flex justify-between items-center group shadow-lg">
+                            <div className="flex items-center gap-4"><div className="bg-blue-600/10 p-4 rounded-2xl group-hover:bg-blue-600/20 font-heavy"><Icon name="scroll" className="text-blue-500" size={32}/></div><div><p className="text-slate-500 text-xs font-heavy uppercase">Guide</p><p className="text-xl font-heavy text-white">가격표 및 배달료 확인</p></div></div>
                             <Icon name="chevron-right" className="text-slate-700 group-hover:text-blue-500" />
                         </div>
-                        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center gap-5 shadow-lg"><div className="bg-green-600/10 p-4 rounded-2xl"><Icon name="percent" className="text-green-500" size={32}/></div><div><h3 className="text-slate-500 text-xs font-heavy uppercase">Rule</h3><p className="text-2xl font-heavy text-white">판매 매출의 50% 입금</p></div></div>
+                        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center gap-5 shadow-lg"><div className="bg-green-600/10 p-4 rounded-2xl font-heavy"><Icon name="percent" className="text-green-500" size={32}/></div><div><h3 className="text-slate-500 text-xs font-heavy uppercase">Rule</h3><p className="text-2xl font-heavy text-white">판매 매출의 50% 입금</p></div></div>
                     </div>
 
                     <div className="card shadow-2xl">
-                        <h2 className="text-2xl font-heavy mb-8 flex items-center gap-2 font-heavy text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 기록 작성</h2>
+                        <h2 className="text-2xl font-heavy mb-8 flex items-center gap-2 text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 기록 작성</h2>
                         <form onSubmit={submitForm} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                            <div className="lg:col-span-3 space-y-6 font-bold font-heavy">
-                                <div className="grid grid-cols-2 gap-4 font-bold">
+                            <div className="lg:col-span-3 space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
                                     <input className="input-base font-bold" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="구매자 고유번호" />
                                     <input className="input-base font-bold" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="구매자 닉네임" />
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-heavy">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {Object.keys(ITEM_INFO).map(k => (
                                         <div key={k}>
-                                            <label className="text-xs text-slate-500 mb-1 flex items-center gap-1 font-bold">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
-                                            <input type="number" className={`input-base font-bold ${(parseInt(form[k]) > ITEM_INFO[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${ITEM_INFO[k].max}`} />
+                                            <label className="text-xs text-slate-500 mb-1 flex items-center gap-1">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
+                                            <input type="number" className={`input-base font-bold ${(parseInt(form[k]) > ITEM_INFO[k].max) ? 'border-red-500 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${ITEM_INFO[k].max}`} />
                                         </div>
                                     ))}
                                 </div>
-                                <input className="input-base font-bold font-heavy" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="비고 (특이사항)" />
+                                <input className="input-base font-bold" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="비고 (특이사항)" />
                             </div>
                             <div className="lg:col-span-2 bg-slate-950 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-inner">
                                 <div className="space-y-6">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy font-heavy">총 매출</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p></div></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500">총 매출</span><div className="text-right font-heavy"><p className="text-3xl text-white">{formatKRW(total)}</p></div></div>
                                     <div className="h-px bg-slate-900"></div>
-                                    <div className="flex justify-between items-center"><span className="text-blue-500 font-heavy font-heavy">공계 입금(50%)</span><div className="text-right font-heavy font-heavy"><p className="text-3xl text-blue-400 font-heavy font-heavy font-heavy">{formatKRW(total * 0.5)}</p></div></div>
+                                    <div className="flex justify-between items-center"><span className="text-blue-500">공계 입금(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400">{formatKRW(total * 0.5)}</p></div></div>
                                 </div>
                                 {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce mt-4">⚠️ 수량 초과</p>}
-                                <button type="submit" disabled={isExceeded} className={`btn w-full py-5 text-2xl font-heavy mt-4 shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue shadow-blue-900/40 shadow-lg'}`}>장부 제출하기</button>
+                                <button type="submit" disabled={isExceeded || total === 0} className={`btn w-full py-5 text-2xl font-heavy mt-4 shadow-xl ${isExceeded || total === 0 ? 'bg-slate-800 text-slate-600 opacity-50' : 'btn-blue'}`}>장부 제출하기</button>
                             </div>
                         </form>
                     </div>
 
                     <div className="card overflow-x-auto">
-                        <h2 className="text-xl font-heavy mb-6 italic text-white flex items-center gap-2"><Icon name="history"/> 최근 나의 기록 (5건)</h2>
-                        <table className="w-full text-left font-bold font-heavy">
-                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest"><tr><th className="p-4 text-white font-heavy">구매자</th><th className="p-4 text-center text-white font-heavy">금액</th><th className="p-4 text-center text-white font-heavy">상태</th></tr></thead>
+                        <h2 className="text-xl font-heavy mb-6">나의 최근 판매 내역 (5건)</h2>
+                        <table className="w-full text-left">
+                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest"><tr><th className="p-4">구매자</th><th className="p-4 text-center">판매액</th><th className="p-4 text-center">상태</th><th className="p-4 text-center">수정</th></tr></thead>
                             <tbody className="text-white">
-                                {records.filter(r => r.sellerSn === user.sn).slice(0, 5).map(r => (
-                                    <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors font-heavy">
-                                        <td className="p-4">{r.buyerNickname} (#{r.buyerSn})</td>
-                                        <td className="p-4 text-center text-blue-400">{formatKRW(r.totalAmount)}</td>
+                                {records.filter(r => r.sellerUid === user.uid).slice(0, 5).map(r => (
+                                    <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                        <td className="p-4">{r.buyerNickname} ({r.buyerSn})</td>
+                                        <td className="p-4 text-center font-heavy">{formatKRW(r.totalAmount)}</td>
                                         <td className="p-4 text-center">
-                                            <span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400 font-heavy':'bg-red-500/20 text-red-400 font-heavy'}`}>{r.status==='completed'?'승인완료':'대기중'}</span>
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'확인됨':'보류/대기'}</span>
+                                            </div>
                                         </td>
+                                        <td className="p-4 text-center"><button onClick={()=>setEditing({...r})} className="p-2.5 bg-slate-800 hover:bg-blue-600 rounded-xl transition-all"><Icon name="edit-2" size={16}/></button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -347,15 +444,43 @@
                     </div>
 
                     {showPrices && (
-                        <Modal title="설국 가격표" onClose={()=>setShowPrices(false)}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Modal title="가격표 및 배달 서비스" onClose={()=>setShowPrices(false)}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                                 {Object.keys(ITEM_INFO).map(k => (
-                                    <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800 font-heavy">
+                                    <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800">
                                         <div className="text-4xl">{ITEM_INFO[k].emoji}</div>
-                                        <div className="flex-1 font-heavy font-heavy"><div className="flex justify-between font-heavy font-heavy"><span className="text-white text-lg font-heavy">{ITEM_INFO[k].label}</span><span className="text-blue-400 font-heavy">{formatKRW(PRICES[k])}</span></div></div>
+                                        <div className="flex-1 font-bold"><div className="flex justify-between font-heavy"><span className="text-white text-lg">{ITEM_INFO[k].label}</span><span className="text-blue-400">{formatKRW(PRICES[k])}</span></div><p className="text-[10px] text-slate-500 uppercase">{ITEM_INFO[k].desc}</p></div>
                                     </div>
                                 ))}
                             </div>
+                            <div className="bg-blue-900/10 p-8 rounded-3xl border border-blue-500/20 space-y-4">
+                                <h4 className="text-xl text-blue-400 flex items-center gap-2 font-heavy mb-2"><Icon name="truck" size={24}/> 배달료 가이드</h4>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800"><span className="text-slate-300">남부 배달</span><span className="text-white font-heavy text-lg">10억</span></div>
+                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800"><span className="text-slate-300">북부 배달</span><span className="text-white font-heavy text-lg">20억</span></div>
+                                    <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20 text-center text-green-400 font-heavy">💡 설국 입구 거래 시 배달료 무료</div>
+                                </div>
+                            </div>
+                        </Modal>
+                    )}
+
+                    {editing && (
+                        <Modal title="장부 내용 수정" onClose={()=>setEditing(null)}>
+                            <form onSubmit={handleEditSave} className="space-y-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {Object.keys(ITEM_INFO).map(k => (
+                                        <div key={k} className="space-y-1">
+                                            <label className="text-[10px] text-slate-500 uppercase">{ITEM_INFO[k].label}</label>
+                                            <input type="number" className="input-base font-heavy text-lg py-3" value={editing[k]||0} onChange={e=>setEditing({...editing, [k]: parseInt(e.target.value)||0})} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-6 bg-red-950/20 rounded-3xl border border-red-900/30">
+                                    <label className="text-xs text-red-500 uppercase font-heavy mb-2 block tracking-widest">수정 사유 입력 (필수)</label>
+                                    <textarea className="input-base h-24 font-bold" value={reason} onChange={e=>setReason(e.target.value)} required placeholder="수정 사유를 입력하세요." />
+                                </div>
+                                <button type="submit" className="btn btn-blue w-full py-5 text-xl font-heavy shadow-xl">수정 완료</button>
+                            </form>
                         </Modal>
                     )}
                 </div>
@@ -368,28 +493,32 @@
             }), [records, range]);
 
             return (
-                <div className="space-y-8 font-bold font-heavy">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 font-heavy">
+                <div className="space-y-8 animate-fade-in font-bold">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <h2 className="text-3xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={28}/> 전체 장부 현황</h2>
-                        <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl font-heavy">
-                            <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500"><Icon name="chevron-left" size={24}/></button>
-                            <span className="text-blue-400 font-heavy whitespace-nowrap">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
-                            <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500"><Icon name="chevron-right" size={24}/></button>
+                        <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl">
+                            <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-left" size={24}/></button>
+                            <span className="text-blue-400 whitespace-nowrap font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
+                            <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-right" size={24}/></button>
                         </div>
                     </div>
-                    <div className="card p-0 overflow-hidden shadow-2xl font-heavy">
+                    <div className="card p-0 overflow-hidden shadow-2xl">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left font-heavy font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 text-white font-heavy"><th className="p-6 font-heavy">판매자</th><th className="p-6 font-heavy">구매자</th><th className="p-6 text-right font-heavy">매출액</th><th className="p-6 text-center font-heavy font-heavy">상태</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest"><tr className="border-b border-slate-700">
+                                    <th className="p-6">판매 사원</th><th className="p-6">구매자</th><th className="p-6 text-right">매출액</th><th className="p-6 text-right">입금액</th><th className="p-6 text-center">상태</th>
+                                </tr></thead>
+                                <tbody className="divide-y divide-slate-800 text-white">
                                     {filtered.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors font-heavy">
-                                            <td className="p-6 font-heavy"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
-                                            <td className="p-6 font-heavy"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
-                                            <td className="p-6 text-right font-heavy font-heavy">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-center font-heavy font-heavy"><span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400 font-heavy':'bg-red-500/20 text-red-400 font-heavy'}`}>{r.status==='completed'?'감사완료':'대기중'}</span></td>
+                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
+                                            <td className="p-6"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
+                                            <td className="p-6"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
+                                            <td className="p-6 text-right font-heavy text-lg">{formatKRW(r.totalAmount)}</td>
+                                            <td className="p-6 text-right text-blue-400 font-heavy text-lg">{formatKRW(r.totalAmount * 0.5)}</td>
+                                            <td className="p-6 text-center"><span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'감사완료':'감사대기'}</span></td>
                                         </tr>
                                     ))}
+                                    {filtered.length === 0 && <tr><td colSpan="5" className="p-10 text-center text-slate-600">해당 기간의 데이터가 없습니다.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -398,66 +527,116 @@
             );
         }
 
-        function AuditView({ records, user }) {
+        function AuditView({ records, db, appId, user, range, offset, setOffset, allUsers, showMsg }) {
             const [tab, setTab] = useState('queue');
-            const pending = records.filter(r => r.status === 'pending');
-            const completed = records.filter(r => r.status === 'completed');
+            const [viewItem, setViewItem] = useState(null);
+            const [rsnModal, setRsnModal] = useState(null);
+            const [reasonText, setReasonText] = useState("");
+            const [penaltyInput, setPenaltyInput] = useState(0);
 
-            const approve = async (id) => {
-                await db.collection('seolguk').doc(appId).collection('records').doc(id).update({ 
-                    status: 'completed', auditedAt: firebase.firestore.FieldValue.serverTimestamp(), auditorName: user.nickname 
-                });
-                alert("승인 처리되었습니다.");
+            const pending = records.filter(r => r.status === 'pending' && !r.auditReason);
+            const history = records.filter(r => (r.status === 'completed' || r.auditReason)).filter(r => {
+                const d = new Date(r.auditedAt || r.timestamp);
+                return d >= range.start && d <= range.end;
+            });
+
+            const approveRecord = async (r) => {
+                const { doc, updateDoc } = window.FirebaseSDK;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', r.id), {
+                        status: 'completed',
+                        auditedAt: new Date().toISOString(),
+                        auditorName: user.nickname
+                    });
+                    showMsg("승인되었습니다.");
+                } catch(e) { showMsg("승인 실패", "error"); }
             };
 
-            const remove = async (id) => {
-                if(!window.confirm("기록을 영구 삭제하시겠습니까?")) return;
-                await db.collection('seolguk').doc(appId).collection('records').doc(id).delete();
+            const rejectRecord = async () => {
+                if(!reasonText.trim()) return showMsg("사유를 입력하세요.", "error");
+                const { doc, updateDoc } = window.FirebaseSDK;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', rsnModal.id), {
+                        status: 'pending',
+                        auditReason: reasonText,
+                        penaltyPoints: penaltyInput,
+                        auditedAt: new Date().toISOString(),
+                        auditorName: user.nickname
+                    });
+                    setRsnModal(null); setReasonText(""); setPenaltyInput(0);
+                    showMsg("보류 처리되었습니다.");
+                } catch(e) { showMsg("실패", "error"); }
+            };
+
+            const deleteRecord = async (id) => {
+                const { doc, deleteDoc } = window.FirebaseSDK;
+                if(!confirm("이 장부를 영구 삭제하시겠습니까?")) return;
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
+                    showMsg("삭제되었습니다.");
+                } catch(e) { showMsg("실패", "error"); }
             };
 
             return (
-                <div className="space-y-8 font-bold font-heavy">
-                    <div className="flex gap-4 border-b border-slate-800 pb-4 font-heavy">
-                        <button onClick={()=>setTab('queue')} className={`px-6 py-3 rounded-2xl transition-all font-heavy ${tab === 'queue' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500'}`}>대기열 ({pending.length})</button>
-                        <button onClick={()=>setTab('history')} className={`px-6 py-3 rounded-2xl transition-all font-heavy ${tab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500'}`}>처리 기록 ({completed.length})</button>
+                <div className="space-y-8 animate-fade-in font-bold">
+                    <div className="flex gap-4 border-b border-slate-800 pb-4">
+                        <button onClick={()=>setTab('queue')} className={`px-6 py-3 rounded-2xl transition-all ${tab === 'queue' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>감사 대기열 ({pending.length})</button>
+                        <button onClick={()=>setTab('history')} className={`px-6 py-3 rounded-2xl transition-all ${tab === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>처리 기록</button>
                     </div>
 
-                    {tab === 'queue' ? (
-                        <div className="grid grid-cols-1 gap-6 font-heavy">
-                            {pending.length === 0 ? <div className="p-20 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl font-heavy font-heavy">대기 중인 장부가 없습니다.</div> :
-                            pending.map(r => (
-                                <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl font-heavy font-heavy">
-                                    <div className="flex-1 space-y-4 font-heavy font-heavy">
-                                        <div className="text-sm font-heavy uppercase font-heavy">판매자: <span className="text-white text-xl font-heavy">{r.sellerNickname} (#{r.sellerSn})</span></div>
-                                        <div className="flex gap-12 font-heavy font-heavy">
-                                            <div className="font-heavy"><p className="text-[10px] text-slate-600 uppercase font-heavy font-heavy">총 매출</p><p className="text-2xl text-white font-heavy font-heavy font-heavy font-heavy">{formatKRW(r.totalAmount)}</p></div>
-                                            <div className="font-heavy"><p className="text-[10px] text-blue-500 uppercase font-heavy font-heavy">입금 예정</p><p className="text-2xl text-blue-400 font-heavy font-heavy font-heavy font-heavy font-heavy">{formatKRW(r.totalAmount * 0.5)}</p></div>
+                    {tab === 'queue' && (
+                        <div className="grid grid-cols-1 gap-6">
+                            {pending.map(r => (
+                                <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl">
+                                    <div className="flex-1 space-y-4">
+                                        <div className="text-sm">판매자: <span className="text-white text-xl font-heavy">{r.sellerNickname} ({r.sellerSn})</span></div>
+                                        <div className="flex gap-12">
+                                            <div><p className="text-[10px] text-slate-600 uppercase">매출액</p><p className="text-2xl font-heavy">{formatKRW(r.totalAmount)}</p></div>
+                                            <div><p className="text-[10px] text-blue-500 uppercase">입금액</p><p className="text-2xl text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</p></div>
                                         </div>
                                     </div>
-                                    <div className="flex gap-3 font-heavy font-heavy">
-                                        <button onClick={()=>approve(r.id)} className="btn btn-blue py-5 text-xl font-heavy shadow-lg font-heavy">승인</button>
-                                        <button onClick={()=>remove(r.id)} className="btn btn-red py-4 font-heavy"><Icon name="trash-2"/></button>
+                                    <div className="flex flex-col gap-3 min-w-[240px]">
+                                        <button onClick={()=>approveRecord(r)} className="btn btn-blue py-5 text-xl font-heavy shadow-lg"><Icon name="check-circle"/> 감사 승인</button>
+                                        <button onClick={()=>setRsnModal(r)} className="btn btn-red py-4 text-lg font-heavy"><Icon name="alert-triangle"/> 보류/패널티</button>
                                     </div>
                                 </div>
                             ))}
+                            {pending.length === 0 && <div className="text-center py-20 text-slate-600">대기 중인 장부가 없습니다.</div>}
                         </div>
-                    ) : (
-                        <div className="card p-0 overflow-hidden shadow-2xl font-heavy font-heavy">
-                            <table className="w-full text-left font-bold font-heavy font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-xs uppercase font-heavy"><tr className="border-b border-slate-700 font-heavy font-heavy font-heavy font-heavy font-heavy"><th className="p-6 font-heavy">판매자</th><th className="p-6 font-heavy">매출</th><th className="p-6 text-center font-heavy">관리</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
-                                    {completed.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/40 transition-colors font-heavy font-heavy">
-                                            <td className="p-6 font-heavy">{r.sellerNickname}</td>
-                                            <td className="p-6 text-blue-400 font-heavy">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-center font-heavy">
-                                                <button onClick={()=>remove(r.id)} className="text-red-500 hover:text-red-300 font-heavy font-heavy"><Icon name="trash-2" size={18}/></button>
+                    )}
+
+                    {tab === 'history' && (
+                        <div className="card p-0 overflow-hidden shadow-2xl">
+                             <table className="w-full text-left">
+                                <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest"><tr className="border-b border-slate-700">
+                                    <th className="p-6">처리일시</th><th className="p-6">판매자</th><th className="p-6 text-center">상태</th><th className="p-6 text-center">관리</th>
+                                </tr></thead>
+                                <tbody className="divide-y divide-slate-800 text-white">
+                                    {history.map(r => (
+                                        <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
+                                            <td className="p-6 text-sm text-slate-500 font-mono">{new Date(r.auditedAt || r.timestamp).toLocaleDateString()}</td>
+                                            <td className="p-6">{r.sellerNickname} <span className="opacity-40">({r.sellerSn})</span></td>
+                                            <td className="p-6 text-center"><span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'완료':'보류'}</span></td>
+                                            <td className="p-6 text-center">
+                                                <div className="flex justify-center gap-2">
+                                                    <button onClick={()=>deleteRecord(r.id)} className="btn btn-red px-3 py-3 text-xs"><Icon name="trash-2" size={16}/></button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
+                    )}
+
+                    {rsnModal && (
+                        <Modal title="감사 보류 및 패널티 부여" onClose={()=>setRsnModal(null)}>
+                            <div className="space-y-6">
+                                <div className="space-y-2"><label className="text-sm text-red-400">보류 사유</label><textarea className="input-base h-32" value={reasonText} onChange={e=>setReasonText(e.target.value)} required /></div>
+                                <div className="space-y-2"><label className="text-sm text-red-500">패널티 점수</label><input type="number" className="input-base text-2xl font-heavy text-red-500" value={penaltyInput} onChange={e=>setPenaltyInput(parseInt(e.target.value||0))} /></div>
+                                <button onClick={rejectRecord} className="btn btn-red w-full py-5 text-xl font-heavy">보류 확정</button>
+                            </div>
+                        </Modal>
                     )}
                 </div>
             );
@@ -467,77 +646,96 @@
             const data = useMemo(() => {
                 const s = {};
                 records.filter(r => r.status === 'completed').forEach(r => {
-                    if (!s[r.sellerSn]) s[r.sellerSn] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0 };
-                    s[r.sellerSn].count++; s[r.sellerSn].total += r.totalAmount;
+                    if (!s[r.sellerUid]) s[r.sellerUid] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0 };
+                    s[r.sellerUid].count++; s[r.sellerUid].total += r.totalAmount;
                 });
                 return Object.values(s).sort((a, b) => b.total - a.total);
             }, [records]);
 
             return (
-                <div className="space-y-12 text-center font-bold font-heavy">
-                    <div className="space-y-4 font-heavy font-heavy">
-                        <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2 animate-bounce font-heavy font-heavy"><Icon name="award" size={64} className="text-yellow-500"/></div>
-                        <h2 className="text-5xl text-white font-heavy uppercase italic font-heavy">판매 명예의 전당</h2>
-                        <p className="text-slate-500 tracking-widest uppercase text-xs font-heavy font-heavy font-heavy">Leaderboard</p>
+                <div className="space-y-12 animate-fade-in font-bold">
+                    <div className="text-center space-y-4">
+                        <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2 animate-pulse"><Icon name="award" size={64} className="text-yellow-500"/></div>
+                        <h2 className="text-5xl text-white font-heavy uppercase italic">설국 판매 랭킹</h2>
+                        <p className="text-slate-500 tracking-widest uppercase text-xs">Sales Performance Leaderboard</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end pt-16 font-heavy font-heavy font-heavy font-heavy">
-                        {data.slice(0, 3).map((item, idx) => (
-                            <div key={idx} className={`bg-slate-900 border-t-8 ${idx===0?'border-yellow-500':'border-blue-500'} rounded-t-[3rem] p-10 shadow-2xl transition-all hover:scale-105 font-heavy font-heavy`}>
-                                <span className={`text-6xl font-black ${idx===0?'text-yellow-500':'text-blue-500'} italic font-heavy font-heavy`}>{idx+1}위</span>
-                                <p className="text-2xl text-white font-black mt-2 font-heavy font-heavy">{item.name}</p>
-                                <p className="text-sm text-slate-500 font-heavy font-heavy font-heavy">{formatKRW(item.total)} 매출</p>
-                            </div>
-                        ))}
+                    <div className="card p-0 overflow-hidden shadow-2xl">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest"><tr className="border-b border-slate-800"><th className="p-6">순위</th><th className="p-6">사원명</th><th className="p-6 text-center">판매 건수</th><th className="p-6 text-right">총 매출</th></tr></thead>
+                            <tbody className="divide-y divide-slate-800 text-white">
+                                {data.map((item, idx) => (
+                                    <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/5' : ''} hover:bg-slate-800/50`}>
+                                        <td className="p-6"><span className={`w-10 h-10 rounded-full flex items-center justify-center font-heavy ${idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-slate-300 text-black' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-500'}`}>{idx+1}</span></td>
+                                        <td className="p-6"><div className="text-xl font-heavy">{item.name}</div><div className="text-xs text-slate-600">SN: {item.sn}</div></td>
+                                        <td className="p-6 text-center font-heavy text-blue-400">{item.count}건</td>
+                                        <td className="p-6 text-right font-heavy">{formatKRW(item.total)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             );
         }
 
-        function AdminView({ allUsers, config }) {
+        function AdminView({ allUsers, db, appId, config, showMsg }) {
             const [noticeIn, setNoticeIn] = useState(config.eventNotice || "");
 
             const handleNoticeSave = async () => {
-                await db.collection('seolguk').doc(appId).collection('config').doc('main').set({ ...config, eventNotice: noticeIn });
-                alert('공지가 즉시 반영되었습니다.');
+                const { doc, updateDoc } = window.FirebaseSDK;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config'), { eventNotice: noticeIn });
+                    showMsg("공지가 반영되었습니다.");
+                } catch(e) { showMsg("실패", "error"); }
             };
 
-            const approveUser = async (sn) => {
-                await db.collection('seolguk').doc(appId).collection('users').doc(`user_${sn}`).update({ approved: true });
-                alert("해당 사원을 승인했습니다.");
+            const toggleApproval = async (u) => {
+                const { doc, updateDoc } = window.FirebaseSDK;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid), { approved: !u.approved });
+                    showMsg(u.approved ? "승인 취소됨" : "승인됨");
+                } catch(e) { showMsg("실패", "error"); }
             };
 
-            const deleteUser = async (sn) => {
-                if(!window.confirm("사원을 리스트에서 영구 삭제합니까?")) return;
-                await db.collection('seolguk').doc(appId).collection('users').doc(`user_${sn}`).delete();
+            const deleteUser = async (uid) => {
+                const { doc, deleteDoc } = window.FirebaseSDK;
+                if(!confirm("이 사원을 영구 삭제하시겠습니까?")) return;
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid));
+                    showMsg("삭제되었습니다.");
+                } catch(e) { showMsg("실패", "error"); }
             };
 
             return (
-                <div className="space-y-10 font-bold font-heavy font-heavy font-heavy">
-                    <section className="card shadow-xl space-y-8 font-heavy font-heavy font-heavy font-heavy font-heavy">
-                        <div className="space-y-4 font-heavy font-heavy">
-                            <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-heavy font-heavy"><Icon name="megaphone" /> 공지사항 관리</h2>
-                            <textarea className="input-base h-32 text-white font-heavy font-heavy font-heavy" value={noticeIn} onChange={(e)=>setNoticeIn(e.target.value)} placeholder="대시보드 공지..." />
-                            <button onClick={handleNoticeSave} className="btn btn-blue px-8 py-3 font-heavy shadow-lg font-heavy font-heavy">공지 반영하기</button>
+                <div className="space-y-10 animate-fade-in font-bold">
+                    <section className="card shadow-xl space-y-8">
+                        <div className="space-y-4">
+                            <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-heavy"><Icon name="megaphone" /> 대시보드 공지사항 관리</h2>
+                            <textarea className="input-base h-32 font-bold text-white" value={noticeIn} onChange={(e)=>setNoticeIn(e.target.value)} placeholder="공지 입력" />
+                            <div className="flex justify-end"><button onClick={handleNoticeSave} className="btn btn-blue px-8 py-3">공지 반영하기</button></div>
                         </div>
                     </section>
 
-                    <section className="space-y-6 font-heavy font-heavy">
-                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy px-2 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
-                        <div className="card p-0 overflow-hidden shadow-2xl font-heavy">
-                            <table className="w-full text-left font-bold font-heavy font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-xs font-heavy font-heavy"><tr className="font-heavy font-heavy font-heavy"><th className="p-6 font-heavy">SN</th><th className="p-6 font-heavy">닉네임</th><th className="p-6 text-right font-heavy">관리</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy font-heavy">
+                    <section className="space-y-6">
+                        <h2 className="text-2xl text-white flex items-center gap-3 px-2 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 리스트 관리</h2>
+                        <div className="card p-0 overflow-hidden shadow-2xl">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest"><tr className="border-b border-slate-700">
+                                    <th className="p-6">SN</th><th className="p-6">닉네임</th><th className="p-6 text-center">권한</th><th className="p-6 text-center">상태</th><th className="p-6 text-right">삭제</th>
+                                </tr></thead>
+                                <tbody className="divide-y divide-slate-800 text-white">
                                     {allUsers.map(u => (
-                                        <tr key={u.sn} className="hover:bg-slate-800/40 transition-colors font-heavy font-heavy font-heavy">
-                                            <td className="p-6 text-blue-500 font-heavy">#{u.sn}</td>
-                                            <td className="p-6 font-heavy font-heavy">{u.nickname}</td>
-                                            <td className="p-6 text-right flex justify-end gap-2 items-center font-heavy">
-                                                {!u.approved ? (
-                                                    <button onClick={()=>approveUser(u.sn)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-heavy font-heavy font-heavy">승인</button>
-                                                ) : (
-                                                    <span className="text-blue-500 text-[10px] font-heavy mr-4 font-heavy font-heavy">Active</span>
-                                                )}
-                                                <button onClick={()=>deleteUser(u.sn)} className="text-red-900 hover:text-red-500 p-2 font-heavy font-heavy"><Icon name="trash-2" size={18}/></button>
+                                        <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors">
+                                            <td className="p-6 font-heavy text-blue-500">{u.sn}</td>
+                                            <td className="p-6 text-xl">{u.nickname}</td>
+                                            <td className="p-6 text-center text-xs text-slate-500">{u.role}</td>
+                                            <td className="p-6 text-center">
+                                                <button onClick={()=>toggleApproval(u)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${u.approved ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'}`}>
+                                                    {u.approved ? '승인됨' : '승인대기'}
+                                                </button>
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                <button onClick={()=>deleteUser(u.uid)} disabled={u.sn === '0000'} className="p-2 text-red-900 hover:text-red-500 disabled:opacity-0"><Icon name="trash-2" size={18}/></button>
                                             </td>
                                         </tr>
                                     ))}
