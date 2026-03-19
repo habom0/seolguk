@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷 - 경고 시스템 및 로그 확인 강화</title>
+    <title>설국 인트라넷 - 기능 복원 및 최적화</title>
     <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -736,7 +736,6 @@
                                     {warningSortedUsers.punished.length === 0 && <p className="text-center py-10 text-slate-600 font-heavy">누적 경고 사원이 없습니다.</p>}
                                 </div>
                             </section>
-
                             <section className="card bg-slate-900/50 font-heavy">
                                 <h2 className="text-sm text-slate-500 font-heavy mb-4 uppercase tracking-widest">일반 사원 리스트 (경고 0점)</h2>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -746,7 +745,6 @@
                                             <span className="text-[10px] text-slate-600 font-bold">#{u.sn} / 0점</span>
                                         </div>
                                     ))}
-                                    {warningSortedUsers.clean.length === 0 && <p className="col-span-full text-center py-6 text-slate-600">리스트가 비어 있습니다.</p>}
                                 </div>
                             </section>
                         </div>
@@ -922,10 +920,23 @@
             );
         }
 
-        // --- Admin/Audit Member Management View ---
+        // --- Admin View ---
         function AdminView({ allUsers, config, setConfig, currentUser }) {
             const [showPw, setShowPw] = useState({});
+            const [noticeIn, setNoticeIn] = useState(config.eventNotice || "");
             const isAdmin = currentUser.role === ROLES.ADMIN;
+
+            const handleNoticeSave = async () => {
+                if(!isAdmin) return alert("관리자 권한이 필요합니다.");
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {...config, eventNotice: noticeIn});
+                alert('공지가 업데이트되었습니다.');
+            };
+
+            const handleWeekDaySave = async (idx) => {
+                if(!isAdmin) return alert("관리자 권한이 필요합니다.");
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {...config, weekStartDay: idx});
+                alert(`정산 기준일이 ${WEEK_DAYS[idx]}로 변경되었습니다.`);
+            };
 
             const updateUser = async (uid, data) => {
                 if(!isAdmin) return alert("관리자만 수정할 수 있습니다.");
@@ -942,6 +953,53 @@
 
             return (
                 <div className="space-y-10 animate-fade-in font-bold">
+                    {/* Notice Management Section */}
+                    <section className="card shadow-xl space-y-6 font-heavy">
+                        <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                            <Icon name="megaphone" className="text-blue-400" />
+                            <h2 className="text-xl text-white">메인 공지사항 관리</h2>
+                        </div>
+                        <div className="space-y-4">
+                            <textarea 
+                                className="input-base h-32 font-bold text-white font-heavy" 
+                                value={noticeIn} 
+                                onChange={(e)=>setNoticeIn(e.target.value)} 
+                                placeholder="대시보드 상단 배너에 노출될 내용을 입력하세요."
+                                disabled={!isAdmin}
+                            />
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={handleNoticeSave} 
+                                    className={`btn btn-blue px-10 py-3 font-heavy ${!isAdmin && 'opacity-50 cursor-not-allowed'}`}
+                                    disabled={!isAdmin}
+                                >
+                                    반영하기
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Settlement Settings Section */}
+                    <section className="card shadow-xl space-y-6 font-heavy">
+                        <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                            <Icon name="calendar" className="text-indigo-400" />
+                            <h2 className="text-xl text-white">주간 정산 기준 요일 설정</h2>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {WEEK_DAYS.map((day, idx) => (
+                                <button 
+                                    key={day} 
+                                    onClick={()=>handleWeekDaySave(idx)} 
+                                    className={`px-5 py-3 rounded-xl transition-all border font-heavy ${config.weekStartDay === idx ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg' : 'bg-slate-800 text-slate-500 border-slate-700 hover:border-slate-500'}`}
+                                    disabled={!isAdmin}
+                                >
+                                    매주 {day}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Member Management Section */}
                     <section className="space-y-6 font-heavy">
                         <div className="flex items-center justify-between px-2 font-heavy">
                             <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
