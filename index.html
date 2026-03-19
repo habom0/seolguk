@@ -733,6 +733,20 @@
                                             </div>
                                         </div>
                                     ))}
+                                    {warningSortedUsers.punished.length === 0 && <p className="text-center py-10 text-slate-600 font-heavy">누적 경고 사원이 없습니다.</p>}
+                                </div>
+                            </section>
+
+                            <section className="card bg-slate-900/50 font-heavy">
+                                <h2 className="text-sm text-slate-500 font-heavy mb-4 uppercase tracking-widest">일반 사원 리스트 (경고 0점)</h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {warningSortedUsers.clean.map(u => (
+                                        <div key={u.uid} className="bg-slate-950/50 p-3 rounded-xl border border-slate-800/50 flex flex-col items-center group hover:bg-slate-800 transition-all">
+                                            <span className="text-white text-sm font-heavy">{u.nickname}</span>
+                                            <span className="text-[10px] text-slate-600 font-bold">#{u.sn} / 0점</span>
+                                        </div>
+                                    ))}
+                                    {warningSortedUsers.clean.length === 0 && <p className="col-span-full text-center py-6 text-slate-600">리스트가 비어 있습니다.</p>}
                                 </div>
                             </section>
                         </div>
