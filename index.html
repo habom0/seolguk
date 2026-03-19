@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>설국 인트라넷 - 실시간 연동판</title>
     
-    <!-- 1. 라이브러리 로드 (가장 안정적인 방식) -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 1. 필수 라이브러리 (React, Babel, Tailwind, Lucide) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- 2. 파이어베이스 SDK (Compat 버전) -->
+    <!-- 2. 파이어베이스 SDK (전역 변수 방식 - 가장 안정적) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -39,15 +39,15 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #020617; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 파이어베이스 초기화 ---
+        const { useState, useEffect, useMemo } = React;
+
+        // --- 파이어베이스 설정 ---
         const firebaseConfig = {
             apiKey: "AIzaSyBAWsHBAAFXzf5dCETcE6b8rvA2vmkJB08",
             authDomain: "seolguk-net.firebaseapp.com",
@@ -57,12 +57,13 @@
             appId: "1:108374145265:web:3541eeddd6bc90ac289150"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        // 초기화
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const auth = firebase.auth();
         const db = firebase.firestore();
-        const appId = "seolguk-v1"; // 저장소 버전 관리용
-
-        const { useState, useEffect, useMemo } = React;
+        const appId = "seolguk-v1";
 
         // --- 설정 상수 ---
         const PRICES = { fullpack: 6400000000, painkiller: 3500000, honeyjelly: 80000000, honeystick: 80000000, parachute: 5000000, elixir: 4000000 };
@@ -100,7 +101,7 @@
                 return () => window.removeEventListener('keydown', handleEsc);
             }, [onClose]);
             return (
-                <div className="modal-overlay animate-fade-in" onClick={(e) => e.target === e.currentTarget && onClose()}>
+                <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
                     <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-slate-700">
                         <button onClick={onClose} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><Icon name="x" size={24}/></button>
                         <h3 className="text-2xl font-heavy mb-6 flex items-center gap-2 text-white">{title}</h3>
@@ -122,10 +123,10 @@
             const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                // 파이어베이스 익명 로그인
-                auth.signInAnonymously().catch(console.error);
+                // 파이어베이스 익명 로그인 실행
+                auth.signInAnonymously().catch(err => console.error("Auth failed:", err));
 
-                // 실시간 데이터 리스너
+                // 실시간 데이터 감시
                 const unsubUsers = db.collection('seolguk').doc(appId).collection('users').onSnapshot(snap => {
                     const list = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
                     setAllUsers(list);
@@ -135,13 +136,13 @@
                         if (found && found.approved) setUser(found);
                     }
                     setLoading(false);
-                });
+                }, err => console.error("Firestore Users Error:", err));
 
                 const unsubRecords = db.collection('seolguk').doc(appId).collection('records').onSnapshot(snap => {
                     const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                     setRecords(list);
-                });
+                }, err => console.error("Firestore Records Error:", err));
 
                 const unsubConfig = db.collection('seolguk').doc(appId).collection('config').doc('main').onSnapshot(snap => {
                     if (snap.exists) setConfig(snap.data());
@@ -162,17 +163,19 @@
                 return { start, end };
             }, [weekOffset, config.weekStartDay]);
 
-            if (loading) return <div className="min-h-screen flex flex-col items-center justify-center text-blue-500 font-heavy gap-4">
-                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p>설국 시스템 연결 중...</p>
-            </div>;
+            if (loading) return (
+                <div className="min-h-screen flex flex-col items-center justify-center text-blue-500 font-heavy gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p>설국 시스템 보안 검사 중...</p>
+                </div>
+            );
 
             if (!user) {
                 return (
                     <div className="min-h-screen flex items-center justify-center p-4 bg-[#020617]">
                         <div className="card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
-                            <h1 className="text-3xl font-heavy mb-8 italic text-white">설국 인트라넷</h1>
+                            <h1 className="text-3xl font-heavy mb-8 italic text-white tracking-tighter">설국 인트라넷</h1>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800 pb-2">
                                 {['login', 'signup'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`transition-all font-heavy ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500'}`}>
@@ -213,13 +216,13 @@
             }
 
             return (
-                <div className="min-h-screen flex flex-col md:flex-row animate-fade-in">
+                <div className="min-h-screen flex flex-col md:flex-row">
                     {/* Sidebar */}
                     <nav className="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-5 flex flex-col gap-2 z-20 sticky top-0 md:h-screen">
                         <div className="flex items-center gap-3 py-6 px-2"><div className="bg-blue-600 p-2 rounded-xl text-white">❄️</div><span className="font-heavy text-xl uppercase tracking-tighter italic">설국 인트라넷</span></div>
-                        <div className="space-y-1 mb-6 flex-1 font-bold text-slate-400">
+                        <div className="space-y-1 mb-6 flex-1 font-bold">
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
-                            <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
+                            <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger'} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
                             {user.role !== ROLES.EMPLOYEE && (
                                 <div className="mt-8 pt-4 border-t border-slate-800/50">
@@ -233,13 +236,13 @@
                             <div className="card bg-slate-950 p-4 border-slate-800 mt-2">
                                 <div className="text-sm font-heavy truncate text-white">{user.nickname}</div>
                                 <div className="text-[10px] text-blue-500 font-bold">{user.role} ({user.sn})</div>
-                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_sn');}} className="mt-3 w-full py-1.5 bg-slate-800 hover:bg-red-900/20 text-red-400 rounded-lg text-xs transition-all font-bold">로그아웃</button>
+                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_sn');}} className="mt-3 w-full py-1.5 bg-slate-800 hover:bg-red-900/20 text-red-400 rounded-lg text-xs transition-all font-bold font-heavy">로그아웃</button>
                             </div>
                         </div>
                     </nav>
 
                     {/* Main Content */}
-                    <main className="flex-1 p-5 md:p-10 max-w-7xl mx-auto w-full">
+                    <main className="flex-1 p-5 md:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
                         {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} />}
                         {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
                         {activeTab === 'ranking' && <RankingView records={records} />}
@@ -256,7 +259,6 @@
             </button>
         );
 
-        // --- Dashboard View ---
         function DashboardView({ user, records, config }) {
             const initialForm = { buyerSn: '', buyerNickname: '', note: '', fullpack: 0, painkiller: 0, honeyjelly: 0, honeystick: 0, parachute: 0, elixir: 0 };
             const [form, setForm] = useState(initialForm);
@@ -275,8 +277,8 @@
                 };
                 try {
                     await db.collection('seolguk').doc(appId).collection('records').add(newRec);
-                    setForm(initialForm); alert("장부가 제출되었습니다.");
-                } catch(e) { alert("제출 실패"); }
+                    setForm(initialForm); alert("장부가 성공적으로 제출되었습니다.");
+                } catch(e) { alert("제출에 실패했습니다. 관리자에게 문의하세요."); }
             };
 
             return (
@@ -299,12 +301,12 @@
                     <div className="card shadow-2xl">
                         <h2 className="text-2xl font-heavy mb-8 flex items-center gap-2 font-heavy text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 기록 작성</h2>
                         <form onSubmit={submitForm} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                            <div className="lg:col-span-3 space-y-6 font-bold">
+                            <div className="lg:col-span-3 space-y-6 font-bold font-heavy">
                                 <div className="grid grid-cols-2 gap-4 font-bold">
                                     <input className="input-base font-bold" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="구매자 고유번호" />
                                     <input className="input-base font-bold" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="구매자 닉네임" />
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-heavy">
                                     {Object.keys(ITEM_INFO).map(k => (
                                         <div key={k}>
                                             <label className="text-xs text-slate-500 mb-1 flex items-center gap-1 font-bold">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
@@ -312,13 +314,13 @@
                                         </div>
                                     ))}
                                 </div>
-                                <input className="input-base font-bold" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="비고 (특이사항)" />
+                                <input className="input-base font-bold font-heavy" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="비고 (특이사항)" />
                             </div>
                             <div className="lg:col-span-2 bg-slate-950 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-inner">
                                 <div className="space-y-6">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy">총 매출</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p></div></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy font-heavy">총 매출</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p></div></div>
                                     <div className="h-px bg-slate-900"></div>
-                                    <div className="flex justify-between items-center"><span className="text-blue-500 font-heavy">공계 입금(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400 font-heavy">{formatKRW(total * 0.5)}</p></div></div>
+                                    <div className="flex justify-between items-center"><span className="text-blue-500 font-heavy font-heavy">공계 입금(50%)</span><div className="text-right font-heavy font-heavy"><p className="text-3xl text-blue-400 font-heavy font-heavy font-heavy">{formatKRW(total * 0.5)}</p></div></div>
                                 </div>
                                 {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce mt-4">⚠️ 수량 초과</p>}
                                 <button type="submit" disabled={isExceeded} className={`btn w-full py-5 text-2xl font-heavy mt-4 shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue shadow-blue-900/40 shadow-lg'}`}>장부 제출하기</button>
@@ -326,18 +328,17 @@
                         </form>
                     </div>
 
-                    {/* 최근 5건 내역 */}
                     <div className="card overflow-x-auto">
-                        <h2 className="text-xl font-heavy mb-6 italic text-white flex items-center gap-2"><Icon name="history"/> 나의 최근 판매 내역 (5건)</h2>
-                        <table className="w-full text-left font-bold">
-                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest"><tr><th className="p-4 text-white">구매자</th><th className="p-4 text-center text-white">판매액</th><th className="p-4 text-center text-white">상태</th></tr></thead>
+                        <h2 className="text-xl font-heavy mb-6 italic text-white flex items-center gap-2"><Icon name="history"/> 최근 나의 기록 (5건)</h2>
+                        <table className="w-full text-left font-bold font-heavy">
+                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest"><tr><th className="p-4 text-white font-heavy">구매자</th><th className="p-4 text-center text-white font-heavy">금액</th><th className="p-4 text-center text-white font-heavy">상태</th></tr></thead>
                             <tbody className="text-white">
                                 {records.filter(r => r.sellerSn === user.sn).slice(0, 5).map(r => (
-                                    <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                                        <td className="p-4">{r.buyerNickname} ({r.buyerSn})</td>
-                                        <td className="p-4 text-center font-heavy">{formatKRW(r.totalAmount)}</td>
+                                    <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors font-heavy">
+                                        <td className="p-4">{r.buyerNickname} (#{r.buyerSn})</td>
+                                        <td className="p-4 text-center text-blue-400">{formatKRW(r.totalAmount)}</td>
                                         <td className="p-4 text-center">
-                                            <span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'확인됨':'보류/대기'}</span>
+                                            <span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400 font-heavy':'bg-red-500/20 text-red-400 font-heavy'}`}>{r.status==='completed'?'승인완료':'대기중'}</span>
                                         </td>
                                     </tr>
                                 ))}
@@ -346,12 +347,12 @@
                     </div>
 
                     {showPrices && (
-                        <Modal title="설국 가격표 및 배달 서비스" onClose={()=>setShowPrices(false)}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <Modal title="설국 가격표" onClose={()=>setShowPrices(false)}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {Object.keys(ITEM_INFO).map(k => (
-                                    <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800">
+                                    <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800 font-heavy">
                                         <div className="text-4xl">{ITEM_INFO[k].emoji}</div>
-                                        <div className="flex-1"><div className="flex justify-between font-heavy"><span className="text-white text-lg font-heavy">{ITEM_INFO[k].label}</span><span className="text-blue-400 font-heavy">{formatKRW(PRICES[k])}</span></div></div>
+                                        <div className="flex-1 font-heavy font-heavy"><div className="flex justify-between font-heavy font-heavy"><span className="text-white text-lg font-heavy">{ITEM_INFO[k].label}</span><span className="text-blue-400 font-heavy">{formatKRW(PRICES[k])}</span></div></div>
                                     </div>
                                 ))}
                             </div>
@@ -361,35 +362,32 @@
             );
         }
 
-        // --- Ledger View ---
         function LedgerView({ records, range, offset, setOffset }) {
             const filtered = useMemo(() => records.filter(r => {
                 const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
             }), [records, range]);
 
             return (
-                <div className="space-y-8 font-bold">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="space-y-8 font-bold font-heavy">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 font-heavy">
                         <h2 className="text-3xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={28}/> 전체 장부 현황</h2>
-                        <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl">
+                        <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl font-heavy">
                             <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500"><Icon name="chevron-left" size={24}/></button>
                             <span className="text-blue-400 font-heavy whitespace-nowrap">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
                             <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500"><Icon name="chevron-right" size={24}/></button>
                         </div>
                     </div>
-                    <div className="card p-0 overflow-hidden shadow-2xl">
+                    <div className="card p-0 overflow-hidden shadow-2xl font-heavy">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left font-bold">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy font-heavy"><tr className="border-b border-slate-700 text-white"><th className="p-6">판매 사원</th><th className="p-6">구매자</th><th className="p-6 text-right">매출액</th><th className="p-6 text-right">입금액</th><th className="p-6 text-center">상태</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy">
-                                    {filtered.length === 0 ? <tr><td colSpan="5" className="p-20 text-center text-slate-500 font-heavy">데이터가 없습니다.</td></tr> : 
-                                    filtered.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
-                                            <td className="p-6"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
-                                            <td className="p-6"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
-                                            <td className="p-6 text-right font-heavy">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-right text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</td>
-                                            <td className="p-6 text-center"><span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'감사완료':'감사대기'}</span></td>
+                            <table className="w-full text-left font-heavy font-heavy">
+                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 text-white font-heavy"><th className="p-6 font-heavy">판매자</th><th className="p-6 font-heavy">구매자</th><th className="p-6 text-right font-heavy">매출액</th><th className="p-6 text-center font-heavy font-heavy">상태</th></tr></thead>
+                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
+                                    {filtered.map(r => (
+                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors font-heavy">
+                                            <td className="p-6 font-heavy"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
+                                            <td className="p-6 font-heavy"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
+                                            <td className="p-6 text-right font-heavy font-heavy">{formatKRW(r.totalAmount)}</td>
+                                            <td className="p-6 text-center font-heavy font-heavy"><span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400 font-heavy':'bg-red-500/20 text-red-400 font-heavy'}`}>{r.status==='completed'?'감사완료':'대기중'}</span></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -400,8 +398,7 @@
             );
         }
 
-        // --- Audit View (FULL) ---
-        function AuditView({ records, user, allUsers }) {
+        function AuditView({ records, user }) {
             const [tab, setTab] = useState('queue');
             const pending = records.filter(r => r.status === 'pending');
             const completed = records.filter(r => r.status === 'completed');
@@ -410,52 +407,51 @@
                 await db.collection('seolguk').doc(appId).collection('records').doc(id).update({ 
                     status: 'completed', auditedAt: firebase.firestore.FieldValue.serverTimestamp(), auditorName: user.nickname 
                 });
-                alert("승인 완료");
+                alert("승인 처리되었습니다.");
             };
 
             const remove = async (id) => {
-                if(!window.confirm("정말 삭제하시겠습니까?")) return;
+                if(!window.confirm("기록을 영구 삭제하시겠습니까?")) return;
                 await db.collection('seolguk').doc(appId).collection('records').doc(id).delete();
             };
 
             return (
-                <div className="space-y-8 font-bold">
-                    <div className="flex gap-4 border-b border-slate-800 pb-4">
-                        <button onClick={()=>setTab('queue')} className={`px-6 py-3 rounded-2xl transition-all font-heavy ${tab === 'queue' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-white'}`}>감사 대기열 ({pending.length})</button>
-                        <button onClick={()=>setTab('history')} className={`px-6 py-3 rounded-2xl transition-all font-heavy ${tab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500 hover:text-white'}`}>처리 기록 ({completed.length})</button>
+                <div className="space-y-8 font-bold font-heavy">
+                    <div className="flex gap-4 border-b border-slate-800 pb-4 font-heavy">
+                        <button onClick={()=>setTab('queue')} className={`px-6 py-3 rounded-2xl transition-all font-heavy ${tab === 'queue' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500'}`}>대기열 ({pending.length})</button>
+                        <button onClick={()=>setTab('history')} className={`px-6 py-3 rounded-2xl transition-all font-heavy ${tab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500'}`}>처리 기록 ({completed.length})</button>
                     </div>
 
                     {tab === 'queue' ? (
-                        <div className="grid grid-cols-1 gap-6">
-                            {pending.length === 0 ? <div className="p-20 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl">대기 중인 장부가 없습니다.</div> :
+                        <div className="grid grid-cols-1 gap-6 font-heavy">
+                            {pending.length === 0 ? <div className="p-20 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl font-heavy font-heavy">대기 중인 장부가 없습니다.</div> :
                             pending.map(r => (
-                                <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl animate-fade-in">
-                                    <div className="flex-1 space-y-4">
-                                        <div className="text-sm font-heavy uppercase text-slate-400 tracking-wider">판매자: <span className="text-white text-xl font-heavy">{r.sellerNickname} ({r.sellerSn})</span></div>
-                                        <div className="flex gap-12 font-heavy">
-                                            <div><p className="text-[10px] text-slate-600 uppercase font-heavy">매출액</p><p className="text-2xl text-white font-heavy">{formatKRW(r.totalAmount)}</p></div>
-                                            <div><p className="text-[10px] text-blue-500 uppercase font-heavy">입금액</p><p className="text-2xl text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</p></div>
+                                <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl font-heavy font-heavy">
+                                    <div className="flex-1 space-y-4 font-heavy font-heavy">
+                                        <div className="text-sm font-heavy uppercase font-heavy">판매자: <span className="text-white text-xl font-heavy">{r.sellerNickname} (#{r.sellerSn})</span></div>
+                                        <div className="flex gap-12 font-heavy font-heavy">
+                                            <div className="font-heavy"><p className="text-[10px] text-slate-600 uppercase font-heavy font-heavy">총 매출</p><p className="text-2xl text-white font-heavy font-heavy font-heavy font-heavy">{formatKRW(r.totalAmount)}</p></div>
+                                            <div className="font-heavy"><p className="text-[10px] text-blue-500 uppercase font-heavy font-heavy">입금 예정</p><p className="text-2xl text-blue-400 font-heavy font-heavy font-heavy font-heavy font-heavy">{formatKRW(r.totalAmount * 0.5)}</p></div>
                                         </div>
                                     </div>
-                                    <div className="flex gap-3">
-                                        <button onClick={()=>approve(r.id)} className="btn btn-blue py-5 text-xl font-heavy shadow-lg">감사 승인</button>
-                                        <button onClick={()=>remove(r.id)} className="btn btn-red py-4"><Icon name="trash-2"/></button>
+                                    <div className="flex gap-3 font-heavy font-heavy">
+                                        <button onClick={()=>approve(r.id)} className="btn btn-blue py-5 text-xl font-heavy shadow-lg font-heavy">승인</button>
+                                        <button onClick={()=>remove(r.id)} className="btn btn-red py-4 font-heavy"><Icon name="trash-2"/></button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="card p-0 overflow-hidden shadow-2xl animate-fade-in">
-                            <table className="w-full text-left font-bold">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr><th className="p-6 text-white">판매자</th><th className="p-6 text-white">처리 시간</th><th className="p-6 text-right text-white">금액</th><th className="p-6 text-center text-white">관리</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white">
+                        <div className="card p-0 overflow-hidden shadow-2xl font-heavy font-heavy">
+                            <table className="w-full text-left font-bold font-heavy font-heavy">
+                                <thead className="bg-slate-800 text-slate-400 text-xs uppercase font-heavy"><tr className="border-b border-slate-700 font-heavy font-heavy font-heavy font-heavy font-heavy"><th className="p-6 font-heavy">판매자</th><th className="p-6 font-heavy">매출</th><th className="p-6 text-center font-heavy">관리</th></tr></thead>
+                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
                                     {completed.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
-                                            <td className="p-6">{r.sellerNickname}</td>
-                                            <td className="p-6 text-xs text-slate-500">{new Date(r.timestamp).toLocaleString()}</td>
-                                            <td className="p-6 text-right text-blue-400 font-heavy">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-center">
-                                                <button onClick={()=>remove(r.id)} className="text-red-500 hover:text-red-300 p-2"><Icon name="trash-2" size={18}/></button>
+                                        <tr key={r.id} className="hover:bg-slate-800/40 transition-colors font-heavy font-heavy">
+                                            <td className="p-6 font-heavy">{r.sellerNickname}</td>
+                                            <td className="p-6 text-blue-400 font-heavy">{formatKRW(r.totalAmount)}</td>
+                                            <td className="p-6 text-center font-heavy">
+                                                <button onClick={()=>remove(r.id)} className="text-red-500 hover:text-red-300 font-heavy font-heavy"><Icon name="trash-2" size={18}/></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -467,7 +463,6 @@
             );
         }
 
-        // --- Ranking View ---
         function RankingView({ records }) {
             const data = useMemo(() => {
                 const s = {};
@@ -479,18 +474,18 @@
             }, [records]);
 
             return (
-                <div className="space-y-12 text-center font-bold">
-                    <div className="space-y-4">
-                        <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2 animate-bounce"><Icon name="award" size={64} className="text-yellow-500"/></div>
-                        <h2 className="text-5xl text-white font-heavy uppercase italic tracking-tighter">설국 판매 명예의 전당</h2>
-                        <p className="text-slate-500 tracking-widest uppercase text-xs font-heavy">Performance Leaderboard</p>
+                <div className="space-y-12 text-center font-bold font-heavy">
+                    <div className="space-y-4 font-heavy font-heavy">
+                        <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2 animate-bounce font-heavy font-heavy"><Icon name="award" size={64} className="text-yellow-500"/></div>
+                        <h2 className="text-5xl text-white font-heavy uppercase italic font-heavy">판매 명예의 전당</h2>
+                        <p className="text-slate-500 tracking-widest uppercase text-xs font-heavy font-heavy font-heavy">Leaderboard</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end pt-16">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end pt-16 font-heavy font-heavy font-heavy font-heavy">
                         {data.slice(0, 3).map((item, idx) => (
-                            <div key={idx} className={`bg-slate-900 border-t-8 ${idx===0?'border-yellow-500 shadow-yellow-900/20':'border-blue-500'} rounded-t-[3rem] p-10 shadow-2xl transition-all hover:scale-105`}>
-                                <span className={`text-6xl font-black ${idx===0?'text-yellow-500':'text-blue-500'} italic font-heavy`}>{idx+1}위</span>
-                                <p className="text-2xl text-white font-black mt-2 font-heavy">{item.name}</p>
-                                <p className="text-sm text-slate-500 font-heavy mt-1">{formatKRW(item.total)} 매출</p>
+                            <div key={idx} className={`bg-slate-900 border-t-8 ${idx===0?'border-yellow-500':'border-blue-500'} rounded-t-[3rem] p-10 shadow-2xl transition-all hover:scale-105 font-heavy font-heavy`}>
+                                <span className={`text-6xl font-black ${idx===0?'text-yellow-500':'text-blue-500'} italic font-heavy font-heavy`}>{idx+1}위</span>
+                                <p className="text-2xl text-white font-black mt-2 font-heavy font-heavy">{item.name}</p>
+                                <p className="text-sm text-slate-500 font-heavy font-heavy font-heavy">{formatKRW(item.total)} 매출</p>
                             </div>
                         ))}
                     </div>
@@ -498,52 +493,51 @@
             );
         }
 
-        // --- Admin View ---
         function AdminView({ allUsers, config }) {
             const [noticeIn, setNoticeIn] = useState(config.eventNotice || "");
 
             const handleNoticeSave = async () => {
                 await db.collection('seolguk').doc(appId).collection('config').doc('main').set({ ...config, eventNotice: noticeIn });
-                alert('공지 반영 완료!');
+                alert('공지가 즉시 반영되었습니다.');
             };
 
             const approveUser = async (sn) => {
                 await db.collection('seolguk').doc(appId).collection('users').doc(`user_${sn}`).update({ approved: true });
-                alert("사원 승인 완료");
+                alert("해당 사원을 승인했습니다.");
             };
 
             const deleteUser = async (sn) => {
-                if(!window.confirm("사원을 삭제하시겠습니까?")) return;
+                if(!window.confirm("사원을 리스트에서 영구 삭제합니까?")) return;
                 await db.collection('seolguk').doc(appId).collection('users').doc(`user_${sn}`).delete();
             };
 
             return (
-                <div className="space-y-10 font-bold">
-                    <section className="card shadow-xl space-y-8">
-                        <div className="space-y-4">
-                            <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-heavy"><Icon name="megaphone" /> 공지사항 관리</h2>
-                            <textarea className="input-base h-32 text-white font-heavy" value={noticeIn} onChange={(e)=>setNoticeIn(e.target.value)} placeholder="대시보드에 띄울 공지 입력..." />
-                            <button onClick={handleNoticeSave} className="btn btn-blue px-8 py-3 font-heavy shadow-lg shadow-blue-900/40">공지 반영하기</button>
+                <div className="space-y-10 font-bold font-heavy font-heavy font-heavy">
+                    <section className="card shadow-xl space-y-8 font-heavy font-heavy font-heavy font-heavy font-heavy">
+                        <div className="space-y-4 font-heavy font-heavy">
+                            <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-heavy font-heavy"><Icon name="megaphone" /> 공지사항 관리</h2>
+                            <textarea className="input-base h-32 text-white font-heavy font-heavy font-heavy" value={noticeIn} onChange={(e)=>setNoticeIn(e.target.value)} placeholder="대시보드 공지..." />
+                            <button onClick={handleNoticeSave} className="btn btn-blue px-8 py-3 font-heavy shadow-lg font-heavy font-heavy">공지 반영하기</button>
                         </div>
                     </section>
 
-                    <section className="space-y-6">
-                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy px-2"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
-                        <div className="card p-0 overflow-hidden shadow-2xl">
-                            <table className="w-full text-left font-bold">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest"><tr><th className="p-6 text-white">SN</th><th className="p-6 text-white">닉네임</th><th className="p-6 text-right text-white">관리</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white">
+                    <section className="space-y-6 font-heavy font-heavy">
+                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy px-2 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
+                        <div className="card p-0 overflow-hidden shadow-2xl font-heavy">
+                            <table className="w-full text-left font-bold font-heavy font-heavy">
+                                <thead className="bg-slate-800 text-slate-400 text-xs font-heavy font-heavy"><tr className="font-heavy font-heavy font-heavy"><th className="p-6 font-heavy">SN</th><th className="p-6 font-heavy">닉네임</th><th className="p-6 text-right font-heavy">관리</th></tr></thead>
+                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy font-heavy">
                                     {allUsers.map(u => (
-                                        <tr key={u.sn} className="hover:bg-slate-800/40 transition-colors">
-                                            <td className="p-6 font-mono text-blue-500 font-heavy">#{u.sn}</td>
-                                            <td className="p-6 font-heavy text-xl">{u.nickname}</td>
-                                            <td className="p-6 text-right flex justify-end gap-2 items-center">
+                                        <tr key={u.sn} className="hover:bg-slate-800/40 transition-colors font-heavy font-heavy font-heavy">
+                                            <td className="p-6 text-blue-500 font-heavy">#{u.sn}</td>
+                                            <td className="p-6 font-heavy font-heavy">{u.nickname}</td>
+                                            <td className="p-6 text-right flex justify-end gap-2 items-center font-heavy">
                                                 {!u.approved ? (
-                                                    <button onClick={()=>approveUser(u.sn)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-heavy transition-all">승인하기</button>
+                                                    <button onClick={()=>approveUser(u.sn)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-heavy font-heavy font-heavy">승인</button>
                                                 ) : (
-                                                    <span className="text-blue-500 text-[10px] font-heavy mr-4 uppercase tracking-widest">Active</span>
+                                                    <span className="text-blue-500 text-[10px] font-heavy mr-4 font-heavy font-heavy">Active</span>
                                                 )}
-                                                <button onClick={()=>deleteUser(u.sn)} className="text-red-900 hover:text-red-500 p-2 transition-all"><Icon name="trash-2" size={18}/></button>
+                                                <button onClick={()=>deleteUser(u.sn)} className="text-red-900 hover:text-red-500 p-2 font-heavy font-heavy"><Icon name="trash-2" size={18}/></button>
                                             </td>
                                         </tr>
                                     ))}
