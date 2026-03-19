@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷 - 데이터베이스 통합판</title>
+    <title>설국 인트라넷 </title>
     <!-- React & Libraries -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -11,13 +11,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK (ES Modules) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // 전역 객체에 Firebase SDK 할당
         window.FirebaseSDK = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, where };
+        
+        // 로드 완료 이벤트 발생
+        window.dispatchEvent(new Event('firebase-ready'));
     </script>
 
     <style>
@@ -108,8 +112,8 @@
         function App() {
             const [db, setDb] = useState(null);
             const [auth, setAuth] = useState(null);
-            const [fbUser, setFbUser] = useState(null); // Firebase Auth User
-            const [user, setUser] = useState(null); // Firestore App User Data
+            const [fbUser, setFbUser] = useState(null); 
+            const [user, setUser] = useState(null); 
             const [loading, setLoading] = useState(true);
             const [toast, setToast] = useState(null);
 
@@ -123,11 +127,13 @@
 
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'seolguk-net';
 
-            const showMsg = (msg, type = "info") => setToast({ msg, type });
+            const showMsg = useCallback((msg, type = "info") => setToast({ msg, type }), []);
 
-            // 초기화
-            useEffect(() => {
-                const initFirebase = async () => {
+            // Firebase 초기화 로직
+            const startApp = useCallback(async () => {
+                if (!window.FirebaseSDK) return;
+                
+                try {
                     const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore } = window.FirebaseSDK;
                     const app = initializeApp(firebaseConfig);
                     const authInstance = getAuth(app);
@@ -136,7 +142,6 @@
                     setAuth(authInstance);
                     setDb(dbInstance);
 
-                    // 1. Auth 먼저 실행 (Rule 3)
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(authInstance, __initial_auth_token);
                     } else {
@@ -147,54 +152,67 @@
                         setFbUser(u);
                         if (!u) setLoading(false);
                     });
-                };
-                initFirebase();
-            }, []);
+                } catch (error) {
+                    console.error("Firebase 초기화 에러:", error);
+                    showMsg("데이터베이스 연결에 실패했습니다. (인터넷 연결 확인)", "error");
+                    setLoading(false);
+                }
+            }, [showMsg]);
 
-            // 실시간 데이터 구독 (Rule 1 & 2 준수)
+            useEffect(() => {
+                if (window.FirebaseSDK) {
+                    startApp();
+                } else {
+                    window.addEventListener('firebase-ready', startApp);
+                }
+                return () => window.removeEventListener('firebase-ready', startApp);
+            }, [startApp]);
+
+            // 데이터 실시간 구독
             useEffect(() => {
                 if (!fbUser || !db) return;
 
-                const { collection, doc, onSnapshot, query } = window.FirebaseSDK;
+                const { collection, doc, onSnapshot, setDoc } = window.FirebaseSDK;
 
-                // 1. 공용 설정 구독
+                // 1. 공용 설정
                 const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config');
                 const unsubConfig = onSnapshot(configRef, (snap) => {
                     if (snap.exists()) setConfig(snap.data());
                     else setDoc(configRef, { weekStartDay: 1, eventNotice: "" });
-                }, (err) => console.error("Config Error:", err));
+                }, (err) => console.error("Config 구독 에러:", err));
 
-                // 2. 사원 목록 구독
+                // 2. 사원 목록
                 const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
                 const unsubUsers = onSnapshot(usersRef, (snap) => {
                     const list = snap.docs.map(d => ({ ...d.data(), id: d.id }));
                     setAllUsers(list);
                     
-                    // 현재 접속한 SN의 유저 데이터 최신화
-                    const localUser = JSON.parse(localStorage.getItem('seolguk_session'));
-                    if (localUser) {
-                        const updated = list.find(u => u.sn === localUser.sn);
-                        if (updated) {
-                            if (!updated.approved) {
+                    const sessionData = localStorage.getItem('seolguk_session');
+                    if (sessionData) {
+                        try {
+                            const { sn } = JSON.parse(sessionData);
+                            const updated = list.find(u => u.sn === sn);
+                            if (updated && updated.approved) {
+                                setUser(updated);
+                            } else if (updated && !updated.approved) {
                                 setUser(null);
                                 localStorage.removeItem('seolguk_session');
-                            } else {
-                                setUser(updated);
+                                showMsg("승인이 취소되어 로그아웃 되었습니다.", "error");
                             }
-                        }
+                        } catch (e) { console.error("세션 파싱 에러:", e); }
                     }
                     setLoading(false);
-                }, (err) => console.error("Users Error:", err));
+                }, (err) => console.error("Users 구독 에러:", err));
 
-                // 3. 전체 장부 구독
+                // 3. 전체 장부
                 const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'records');
                 const unsubRecords = onSnapshot(recordsRef, (snap) => {
                     const list = snap.docs.map(d => ({ ...d.data(), id: d.id }));
                     setRecords(list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
-                }, (err) => console.error("Records Error:", err));
+                }, (err) => console.error("Records 구독 에러:", err));
 
                 return () => { unsubConfig(); unsubUsers(); unsubRecords(); };
-            }, [fbUser, db, appId]);
+            }, [fbUser, db, appId, showMsg]);
 
             const weekRange = useMemo(() => {
                 const now = new Date();
@@ -215,7 +233,7 @@
                 const pw = fd.get('password');
                 
                 const found = allUsers.find(u => u.sn === sn && u.password === pw);
-                if (!found) return showMsg("정보가 올바르지 않거나 승인 대기 중입니다.", "error");
+                if (!found) return showMsg("정보가 올바르지 않습니다.", "error");
                 if (!found.approved) return showMsg("관리자의 승인이 필요한 계정입니다.", "error");
                 
                 setUser(found);
@@ -243,22 +261,25 @@
 
                 try {
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', newUser.uid), newUser);
-                    showMsg("가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.");
+                    showMsg("신청 완료! 관리자 승인을 기다려주세요.");
                     setAuthMode('login');
-                } catch (err) {
-                    showMsg("오류가 발생했습니다.", "error");
-                }
+                } catch (err) { showMsg("오류가 발생했습니다.", "error"); }
             };
 
-            if (loading) return <div className="min-h-screen flex items-center justify-center text-blue-500 font-heavy">데이터를 불러오는 중...</div>;
+            if (loading) return (
+                <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-blue-500 font-heavy animate-pulse">데이터베이스 동기화 중...</p>
+                </div>
+            );
 
             if (!user) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
+                    <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in bg-slate-950">
                         {toast && <Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)} />}
                         <div className="card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
-                            <h1 className="text-3xl font-heavy mb-8">설국 인트라넷 DB</h1>
+                            <h1 className="text-3xl font-heavy mb-8">설국 인트라넷</h1>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -271,7 +292,7 @@
                                 {authMode === 'signup' && <input name="nickname" placeholder="닉네임" className="input-base text-center font-bold" required />}
                                 <input name="password" type="password" maxLength="4" placeholder="비밀번호 (숫자 4자리)" className="input-base text-center font-bold" required />
                                 <button className="btn btn-blue w-full py-4 text-xl font-heavy shadow-blue-900/40 shadow-lg">입장하기</button>
-                                {authMode !== 'login' && <p className="text-red-500 text-xs animate-pulse font-bold mt-4">가입 후 관리자의 승인이 있어야 로그인이 가능합니다.</p>}
+                                {authMode !== 'login' && <p className="text-red-500 text-xs animate-pulse font-bold mt-4">가입 승인은 고위직에게 문의하세요.</p>}
                             </form>
                         </div>
                     </div>
@@ -321,7 +342,7 @@
             </button>
         );
 
-        // --- Views ---
+        // --- Dashboard View ---
         function DashboardView({ user, db, appId, records, config, showMsg }) {
             const initialForm = { buyerSn: '', buyerNickname: '', note: '', fullpack: 0, painkiller: 0, honeyjelly: 0, honeystick: 0, parachute: 0, elixir: 0 };
             const [form, setForm] = useState(initialForm);
@@ -439,6 +460,7 @@
                                         <td className="p-4 text-center"><button onClick={()=>setEditing({...r})} className="p-2.5 bg-slate-800 hover:bg-blue-600 rounded-xl transition-all"><Icon name="edit-2" size={16}/></button></td>
                                     </tr>
                                 ))}
+                                {records.filter(r => r.sellerUid === user.uid).length === 0 && <tr><td colSpan="4" className="p-10 text-center text-slate-600">판매 내역이 없습니다.</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -456,8 +478,8 @@
                             <div className="bg-blue-900/10 p-8 rounded-3xl border border-blue-500/20 space-y-4">
                                 <h4 className="text-xl text-blue-400 flex items-center gap-2 font-heavy mb-2"><Icon name="truck" size={24}/> 배달료 가이드</h4>
                                 <div className="space-y-3">
-                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800"><span className="text-slate-300">남부 배달</span><span className="text-white font-heavy text-lg">10억</span></div>
-                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800"><span className="text-slate-300">북부 배달</span><span className="text-white font-heavy text-lg">20억</span></div>
+                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800"><span className="text-slate-300">남부 배달 (사유지 기준)</span><span className="text-white font-heavy text-lg">10억</span></div>
+                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800"><span className="text-slate-300">북부 배달 (사유지 기준)</span><span className="text-white font-heavy text-lg">20억</span></div>
                                     <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20 text-center text-green-400 font-heavy">💡 설국 입구 거래 시 배달료 무료</div>
                                 </div>
                             </div>
@@ -529,7 +551,6 @@
 
         function AuditView({ records, db, appId, user, range, offset, setOffset, allUsers, showMsg }) {
             const [tab, setTab] = useState('queue');
-            const [viewItem, setViewItem] = useState(null);
             const [rsnModal, setRsnModal] = useState(null);
             const [reasonText, setReasonText] = useState("");
             const [penaltyInput, setPenaltyInput] = useState(0);
@@ -624,6 +645,7 @@
                                             </td>
                                         </tr>
                                     ))}
+                                    {history.length === 0 && <tr><td colSpan="4" className="p-10 text-center text-slate-600">처리 기록이 없습니다.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -632,7 +654,7 @@
                     {rsnModal && (
                         <Modal title="감사 보류 및 패널티 부여" onClose={()=>setRsnModal(null)}>
                             <div className="space-y-6">
-                                <div className="space-y-2"><label className="text-sm text-red-400">보류 사유</label><textarea className="input-base h-32" value={reasonText} onChange={e=>setReasonText(e.target.value)} required /></div>
+                                <div className="space-y-2"><label className="text-sm text-red-400">보류 사유</label><textarea className="input-base h-32 font-bold" value={reasonText} onChange={e=>setReasonText(e.target.value)} required /></div>
                                 <div className="space-y-2"><label className="text-sm text-red-500">패널티 점수</label><input type="number" className="input-base text-2xl font-heavy text-red-500" value={penaltyInput} onChange={e=>setPenaltyInput(parseInt(e.target.value||0))} /></div>
                                 <button onClick={rejectRecord} className="btn btn-red w-full py-5 text-xl font-heavy">보류 확정</button>
                             </div>
@@ -661,7 +683,7 @@
                     </div>
                     <div className="card p-0 overflow-hidden shadow-2xl">
                         <table className="w-full text-left">
-                            <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest"><tr className="border-b border-slate-800"><th className="p-6">순위</th><th className="p-6">사원명</th><th className="p-6 text-center">판매 건수</th><th className="p-6 text-right">총 매출</th></tr></thead>
+                            <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest"><tr className="border-b border-slate-800"><th className="p-6">순위</th><th className="p-6">사원명</th><th className="p-6 text-center">판매 건수</th><th className="p-6 text-right">총 매출</th></tr></thead>
                             <tbody className="divide-y divide-slate-800 text-white">
                                 {data.map((item, idx) => (
                                     <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/5' : ''} hover:bg-slate-800/50`}>
