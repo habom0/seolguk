@@ -1,659 +1,578 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background-color: #020617; color: #e2e8f0; font-weight: 700; }
-        .font-heavy { font-weight: 900; }
-        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 1.5rem; padding: 1.5rem; transition: 0.3s; }
-        .input-base { background: #020617; border: 1px solid #1e293b; border-radius: 1rem; padding: 1rem; outline: none; width: 100%; transition: 0.2s; color: white; }
-        .input-base:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 1rem; transition: 0.2s; cursor: pointer; font-weight: 800; }
-        .btn-blue { background: #2563eb; color: white; }
-        .btn-blue:hover { background: #1d4ed8; }
-        .btn-indigo { background: #4f46e5; color: white; }
-        .btn-indigo:hover { background: #4338ca; }
-        .btn-green { background: #16a34a; color: white; }
-        .btn-green:hover { background: #15803d; }
-        .btn-red { background: rgba(220, 38, 38, 0.1); color: #ef4444; border: 1px solid rgba(220, 38, 38, 0.2); }
-        .btn-red:hover { background: #dc2626; color: white; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
-        .badge { font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: 0.5rem; font-weight: 900; }
-        .event-gradient { background: linear-gradient(90deg, #1e293b 0%, #1e3a8a 50%, #1e293b 100%); }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  LayoutDashboard, ClipboardList, Trophy, ShieldCheck, 
+  Settings, X, Scroll, Percent, Edit3, Plus, 
+  Trash2, Award, Megaphone, Calendar, Eye, EyeOff, 
+  ChevronLeft, ChevronRight, Truck, Sparkles, CheckCircle, 
+  AlertTriangle, ZoomIn, AlertCircle, User, Loader2 
+} from 'lucide-react';
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+// --- 파이어베이스 초기 설정 ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'seolguk-intranet';
 
-        // --- 설정 상수 ---
-        const PRICES = { fullpack: 6400000000, painkiller: 3500000, honeyjelly: 80000000, honeystick: 80000000, parachute: 5000000, elixir: 4000000 };
-        const ITEM_INFO = {
-            fullpack: { label: '풀패키지', max: 1, emoji: '📦', desc: '1세트' },
-            painkiller: { label: '진통제', max: 200, emoji: '💊', desc: '시민 100 / 팩션 200' },
-            honeyjelly: { label: '꿀젤리', max: 30, emoji: '🧸', desc: '30개 한정' },
-            honeystick: { label: '꿀스틱', max: 30, emoji: '🍯', desc: '30개 한정' },
-            parachute: { label: '낙하산', max: 20, emoji: '🪂', desc: '20개 한정' },
-            elixir: { label: '파워 엘릭서', max: 200, emoji: '🏺', desc: '200개 한정' }
-        };
-        const ROLES = { EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자' };
-        const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+// --- 설정 상수 ---
+const PRICES = { fullpack: 6400000000, painkiller: 3500000, honeyjelly: 80000000, honeystick: 80000000, parachute: 5000000, elixir: 4000000 };
+const ITEM_INFO = {
+    fullpack: { label: '풀패키지', max: 1, emoji: '📦', desc: '1세트' },
+    painkiller: { label: '진통제', max: 200, emoji: '💊', desc: '시민 100 / 팩션 200' },
+    honeyjelly: { label: '꿀젤리', max: 30, emoji: '🧸', desc: '30개 한정' },
+    honeystick: { label: '꿀스틱', max: 30, emoji: '🍯', desc: '30개 한정' },
+    parachute: { label: '낙하산', max: 20, emoji: '🪂', desc: '20개 한정' },
+    elixir: { label: '파워 엘릭서', max: 200, emoji: '🏺', desc: '200개 한정' }
+};
+const ROLES = { EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자' };
+const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
-        // --- 공용 헬퍼 함수 ---
-        const formatKRW = (amount) => {
-            if (amount === 0) return "0원";
-            const eok = Math.floor(amount / 100000000);
-            const remain = amount % 100000000;
-            const man = Math.floor(remain / 10000);
-            let result = "";
-            if (eok > 0) result += `${eok}억 `;
-            if (man > 0) result += (man >= 1000) ? `${man / 1000}천` : `${man.toLocaleString()}만`;
-            return result.trim() || "0원";
-        };
+// --- 헬퍼 함수 ---
+const formatKRW = (amount) => {
+    if (amount === 0) return "0원";
+    const eok = Math.floor(amount / 100000000);
+    const remain = amount % 100000000;
+    const man = Math.floor(remain / 10000);
+    let result = "";
+    if (eok > 0) result += `${eok}억 `;
+    if (man > 0) result += (man >= 1000) ? `${man / 1000}천` : `${man.toLocaleString()}만`;
+    return result.trim() || "0원";
+};
 
-        const Icon = ({ name, size = 20, className = "" }) => {
-            useEffect(() => { if (window.lucide) lucide.createIcons(); }, [name, size, className]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
+// --- 모달 컴포넌트 ---
+const Modal = ({ title, children, onClose }) => {
+    return (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300" onClick={(e) => e.target === e.currentTarget && onClose()}>
+            <div className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative shadow-2xl">
+                <button onClick={onClose} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X size={24}/></button>
+                <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-2">{title}</h3>
+                {children}
+            </div>
+        </div>
+    );
+};
 
-        const Modal = ({ title, children, onClose }) => {
-            useEffect(() => {
-                const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
-                window.addEventListener('keydown', handleEsc);
-                return () => window.removeEventListener('keydown', handleEsc);
-            }, [onClose]);
-            return (
-                <div className="modal-overlay animate-fade-in" onClick={(e) => e.target === e.currentTarget && onClose()}>
-                    <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-slate-700">
-                        <button onClick={onClose} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><Icon name="x" size={24}/></button>
-                        <h3 className="text-2xl font-heavy mb-6 flex items-center gap-2">{title}</h3>
-                        {children}
-                    </div>
-                </div>
-            );
-        };
+// --- 메인 앱 ---
+export default function App() {
+    const [fbUser, setFbUser] = useState(null); // 파이어베이스 인증 상태
+    const [user, setUser] = useState(null); // 로그인된 사원 정보
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [records, setRecords] = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
+    const [config, setConfig] = useState({ weekStartDay: 1, eventNotice: "" });
+    const [weekOffset, setWeekOffset] = useState(0);
+    const [authMode, setAuthMode] = useState('login');
+    const [loading, setLoading] = useState(true);
 
-        // --- 메인 앱 컴포넌트 ---
-        function App() {
-            const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('seolguk_user') || 'null'));
-            const [activeTab, setActiveTab] = useState('dashboard');
-            const [records, setRecords] = useState(() => JSON.parse(localStorage.getItem('seolguk_records') || '[]'));
-            const [allUsers, setAllUsers] = useState(() => JSON.parse(localStorage.getItem('seolguk_all_users') || '[]'));
-            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('seolguk_config') || '{"weekStartDay": 1, "eventNotice": ""}')); 
-            const [weekOffset, setWeekOffset] = useState(0);
-            const [authMode, setAuthMode] = useState('login');
-
-            useEffect(() => { localStorage.setItem('seolguk_records', JSON.stringify(records)); }, [records]);
-            useEffect(() => { localStorage.setItem('seolguk_all_users', JSON.stringify(allUsers)); }, [allUsers]);
-            useEffect(() => { localStorage.setItem('seolguk_config', JSON.stringify(config)); }, [config]);
-            useEffect(() => { if (user) localStorage.setItem('seolguk_user', JSON.stringify(user)); }, [user]);
-
-            const weekRange = useMemo(() => {
-                const now = new Date();
-                now.setDate(now.getDate() + (weekOffset * 7));
-                const day = now.getDay();
-                const diff = (day < config.weekStartDay) ? (day + 7 - config.weekStartDay) : (day - config.weekStartDay);
-                const start = new Date(now);
-                start.setDate(now.getDate() - diff); start.setHours(0,0,0,0);
-                const end = new Date(start);
-                end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
-                return { start, end };
-            }, [weekOffset, config.weekStartDay]);
-
-            if (!user) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center p-4">
-                        <div className="card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
-                            <div className="text-6xl mb-4">❄️</div>
-                            <h1 className="text-3xl font-heavy mb-8">설국 인트라넷</h1>
-                            <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
-                                {['login', 'signup', 'changepw'].map(m => (
-                                    <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
-                                        {m === 'login' ? '로그인' : m === 'signup' ? '가입신청' : '비번변경'}
-                                    </button>
-                                ))}
-                            </div>
-                            <form className="space-y-4" onSubmit={(e) => {
-                                e.preventDefault();
-                                const fd = new FormData(e.target);
-                                const sn = fd.get('sn');
-                                const pw = fd.get('password');
-                                if (authMode === 'login') {
-                                    const found = allUsers.find(u => u.sn === sn && u.password === pw);
-                                    if (found) setUser(found); else alert('정보가 올바르지 않습니다.');
-                                } else if (authMode === 'signup') {
-                                    if (allUsers.find(u => u.sn === sn)) return alert('이미 등록된 번호입니다.');
-                                    const newUser = { uid: 'u_'+Date.now(), sn, nickname: fd.get('nickname'), password: pw, role: sn === '0000' ? ROLES.ADMIN : ROLES.EMPLOYEE, approved: sn === '0000', joinDate: new Date().toISOString() };
-                                    setAllUsers([...allUsers, newUser]); alert('가입 신청 완료!'); setAuthMode('login');
-                                } else {
-                                    const oldPw = fd.get('oldPassword');
-                                    const idx = allUsers.findIndex(u => u.sn === sn && u.password === oldPw);
-                                    if (idx === -1) return alert('기존 정보가 틀립니다.');
-                                    const updated = [...allUsers]; updated[idx].password = pw;
-                                    setAllUsers(updated); alert('비밀번호 변경 완료!'); setAuthMode('login');
-                                }
-                            }}>
-                                <input name="sn" placeholder="고유번호" className="input-base text-center font-bold" required />
-                                {authMode === 'signup' && <input name="nickname" placeholder="닉네임" className="input-base text-center font-bold" required />}
-                                {authMode === 'changepw' && <input name="oldPassword" type="password" placeholder="기존 비밀번호" className="input-base text-center font-bold" required />}
-                                <input name="password" type="password" maxLength="4" placeholder="비밀번호 (숫자 4자리)" className="input-base text-center font-bold" required />
-                                <button className="btn btn-blue w-full py-4 text-xl font-heavy shadow-blue-900/40 shadow-lg">입장하기</button>
-                                {authMode !== 'login' && <p className="text-red-500 text-xs animate-pulse font-bold mt-4">비밀번호 분실 시 관리자 혹은 고위직 문의</p>}
-                            </form>
-                        </div>
-                    </div>
-                );
+    // 1. 파이어베이스 인증 (RULE 3)
+    useEffect(() => {
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
             }
+        };
+        initAuth();
+        const unsubscribe = onAuthStateChanged(auth, (u) => {
+            setFbUser(u);
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
-            return (
-                <div className="min-h-screen flex flex-col md:flex-row">
-                    <nav className="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-5 flex flex-col gap-2 z-20 sticky top-0 md:h-screen">
-                        <div className="flex items-center gap-3 py-6 px-2"><div className="bg-blue-600 p-2 rounded-xl">❄️</div><span className="font-heavy text-xl uppercase tracking-tighter">설국 인트라넷</span></div>
-                        <div className="space-y-1 mb-6 flex-1 font-bold">
-                            <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
-                            <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
-                            <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
-                            {(user.role !== ROLES.EMPLOYEE) && (
-                                <div className="mt-8 pt-4 border-t border-slate-800/50 text-center">
-                                    <p className="text-[10px] text-slate-600 uppercase font-heavy px-4 mb-3 tracking-widest">관리 시스템</p>
-                                    <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo" />
-                                </div>
-                            )}
-                        </div>
-                        <div className="pt-4 border-t border-slate-800 font-bold">
-                            {user.role === ROLES.ADMIN && <NavItem active={activeTab==='admin'} onClick={()=>setActiveTab('admin')} icon="settings" label="시스템 설정" color="slate" />}
-                            <div className="card bg-slate-950 p-4 border-slate-800 mt-2">
-                                <div className="text-sm font-heavy truncate text-white">{user.nickname}</div>
-                                <div className="text-[10px] text-blue-500 font-bold">{user.role} ({user.sn})</div>
-                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_user');}} className="mt-3 w-full py-1.5 bg-slate-800 hover:bg-red-900/20 text-red-400 rounded-lg text-xs transition-all font-bold">로그아웃</button>
-                            </div>
-                        </div>
-                    </nav>
+    // 2. 실시간 데이터 동기화 (RULE 1 & 2)
+    useEffect(() => {
+        if (!fbUser) return;
 
-                    <main className="flex-1 p-5 md:p-10 max-w-7xl mx-auto w-full">
-                        {activeTab === 'dashboard' && <DashboardView user={user} setRecords={setRecords} records={records} config={config} />}
-                        {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
-                        {activeTab === 'ranking' && <RankingView records={records} />}
-                        {activeTab === 'audit' && <AuditView records={records} setRecords={setRecords} user={user} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allUsers={allUsers} />}
-                        {activeTab === 'admin' && <AdminView allUsers={allUsers} setAllUsers={setAllUsers} config={config} setConfig={setConfig} />}
-                    </main>
-                </div>
-            );
-        }
+        // 공용 데이터 경로 설정
+        const usersCol = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+        const recordsCol = collection(db, 'artifacts', appId, 'public', 'data', 'records');
+        const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main');
 
-        const NavItem = ({ active, onClick, icon, label, color = "blue" }) => (
-            <button onClick={onClick} className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${active ? (color === 'indigo' ? 'bg-indigo-600' : color === 'slate' ? 'bg-slate-700' : 'bg-blue-600') + ' text-white shadow-lg' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}>
-                <Icon name={icon}/><span className="font-bold">{label}</span>
-            </button>
-        );
-
-        // --- Dashboard View ---
-        function DashboardView({ user, setRecords, records, config }) {
-            const initialForm = { buyerSn: '', buyerNickname: '', note: '', fullpack: 0, painkiller: 0, honeyjelly: 0, honeystick: 0, parachute: 0, elixir: 0 };
-            const [form, setForm] = useState(initialForm);
-            const [showPrices, setShowPrices] = useState(false);
-            const [editing, setEditing] = useState(null);
-            const [reason, setReason] = useState("");
-
-            const total = useMemo(() => Object.keys(PRICES).reduce((s, k) => s + (parseInt(form[k]) || 0) * PRICES[k], 0), [form]);
-            const isExceeded = useMemo(() => Object.keys(ITEM_INFO).some(k => (parseInt(form[k]) || 0) > ITEM_INFO[k].max), [form]);
-
-            const submitForm = (e) => {
-                e.preventDefault();
-                if (total === 0 || isExceeded) return;
-                const newRec = { ...form, id: 'r_'+Date.now(), timestamp: new Date().toISOString(), sellerUid: user.uid, sellerNickname: user.nickname, sellerSn: user.sn, totalAmount: total, status: 'pending', auditReason: '', auditMemo: '', isEdited: false, penaltyPoints: 0 };
-                setRecords([newRec, ...records]); setForm(initialForm); alert("장부가 제출되었습니다.");
-            };
-
-            const handleEditSave = (e) => {
-                e.preventDefault();
-                if(!reason.trim()) return alert("수정 사유를 입력하세요.");
-                let nt = 0; Object.keys(ITEM_INFO).forEach(k => nt += (parseInt(editing[k])||0) * PRICES[k]);
-                const updated = { ...editing, totalAmount: nt, note: `${editing.note || ""}\n[수정사유: ${reason}]`.trim(), isEdited: true, status: 'pending' };
-                setRecords(records.map(r => r.id === editing.id ? updated : r));
-                setEditing(null); setReason(""); alert("수정 완료! 재감사가 진행됩니다.");
-            };
-
-            return (
-                <div className="space-y-6 animate-fade-in font-bold">
-                    {config.eventNotice && (
-                        <div className="event-gradient p-5 rounded-2xl border border-blue-500/30 flex items-center justify-center gap-3 shadow-xl">
-                            <Icon name="sparkles" className="text-yellow-400 animate-pulse" />
-                            <p className="text-white text-lg font-heavy text-center">{config.eventNotice}</p>
-                            <Icon name="sparkles" className="text-yellow-400 animate-pulse" />
-                        </div>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div onClick={()=>setShowPrices(true)} className="card cursor-pointer hover:bg-slate-800 flex justify-between items-center group shadow-lg">
-                            <div className="flex items-center gap-4"><div className="bg-blue-600/10 p-4 rounded-2xl group-hover:bg-blue-600/20 font-heavy"><Icon name="scroll" className="text-blue-500" size={32}/></div><div><p className="text-slate-500 text-xs font-heavy uppercase">Guide</p><p className="text-xl font-heavy text-white">가격표 및 배달료 확인</p></div></div>
-                            <Icon name="chevron-right" className="text-slate-700 group-hover:text-blue-500" />
-                        </div>
-                        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center gap-5 shadow-lg"><div className="bg-green-600/10 p-4 rounded-2xl font-heavy"><Icon name="percent" className="text-green-500" size={32}/></div><div><h3 className="text-slate-500 text-xs font-heavy uppercase">Rule</h3><p className="text-2xl font-heavy text-white">판매 매출의 50% 입금</p></div></div>
-                    </div>
-
-                    <div className="card shadow-2xl">
-                        <h2 className="text-2xl font-heavy mb-8 flex items-center gap-2 font-heavy text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 기록 작성</h2>
-                        <form onSubmit={submitForm} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                            <div className="lg:col-span-3 space-y-6 font-bold">
-                                <div className="grid grid-cols-2 gap-4 font-bold">
-                                    <input className="input-base font-bold" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="구매자 고유번호" />
-                                    <input className="input-base font-bold" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="구매자 닉네임" />
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {Object.keys(ITEM_INFO).map(k => (
-                                        <div key={k}>
-                                            <label className="text-xs text-slate-500 mb-1 flex items-center gap-1 font-bold">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
-                                            <input type="number" className={`input-base font-bold ${(parseInt(form[k]) > ITEM_INFO[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${ITEM_INFO[k].max}`} />
-                                        </div>
-                                    ))}
-                                </div>
-                                <input className="input-base font-bold" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="비고 (특이사항)" />
-                            </div>
-                            <div className="lg:col-span-2 bg-slate-950 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-inner font-heavy">
-                                <div className="space-y-6 font-heavy">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy">총 매출</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p><p className="text-xs text-slate-600 font-bold">({total.toLocaleString()}원)</p></div></div>
-                                    <div className="h-px bg-slate-900 font-heavy"></div>
-                                    <div className="flex justify-between items-center font-heavy font-heavy"><span className="text-blue-500 font-heavy font-heavy">공계 입금(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400 font-heavy font-heavy">{formatKRW(total * 0.5)}</p><p className="text-xs text-blue-900 font-bold font-heavy">({(total * 0.5).toLocaleString()}원)</p></div></div>
-                                </div>
-                                {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce mt-4">⚠️ 수량 초과</p>}
-                                <button type="submit" disabled={isExceeded} className={`btn w-full py-5 text-2xl font-heavy mt-4 shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue shadow-blue-900/40 shadow-lg'}`}>장부 제출하기</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div className="card overflow-x-auto font-heavy">
-                        <h2 className="text-xl font-heavy mb-6">나의 최근 판매 내역 (5건)</h2>
-                        <table className="w-full text-left font-bold">
-                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest font-heavy"><tr className="font-heavy"><th className="p-4">구매자</th><th className="p-4 text-center">판매액</th><th className="p-4 text-center">상태</th><th className="p-4 text-center">수정</th></tr></thead>
-                            <tbody className="text-white font-bold">
-                                {records.filter(r => r.sellerUid === user.uid).slice(0, 5).map(r => (
-                                    <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors font-heavy">
-                                        <td className="p-4">{r.buyerNickname} ({r.buyerSn})</td>
-                                        <td className="p-4 text-center font-heavy">{formatKRW(r.totalAmount)}</td>
-                                        <td className="p-4 text-center">
-                                            <div className="flex flex-col items-center gap-1 font-heavy font-heavy">
-                                                <span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'확인됨':'보류/대기'}</span>
-                                                {r.isEdited && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-md font-heavy">수정됨</span>}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-center font-heavy"><button onClick={()=>setEditing({...r})} className="p-2.5 bg-slate-800 hover:bg-blue-600 rounded-xl transition-all font-heavy"><Icon name="edit-2" size={16}/></button></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {showPrices && (
-                        <Modal title="설국 가격표 및 배달 서비스" onClose={()=>setShowPrices(false)}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                {Object.keys(ITEM_INFO).map(k => (
-                                    <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800">
-                                        <div className="text-4xl">{ITEM_INFO[k].emoji}</div>
-                                        <div className="flex-1 font-bold font-bold"><div className="flex justify-between font-heavy font-heavy"><span className="text-white text-lg font-bold">{ITEM_INFO[k].label}</span><span className="text-blue-400">{formatKRW(PRICES[k])}</span></div><p className="text-[10px] text-slate-500 uppercase font-bold">{ITEM_INFO[k].desc}</p></div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="bg-blue-900/10 p-8 rounded-3xl border border-blue-500/20 space-y-4 font-bold">
-                                <h4 className="text-xl text-blue-400 flex items-center gap-2 font-heavy mb-2"><Icon name="truck" size={24}/> 배달료 가이드</h4>
-                                <div className="space-y-3 font-bold">
-                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800 font-bold"><span className="text-slate-300 font-bold">남부 배달 (레전드 사유지 기준)</span><span className="text-white font-heavy text-lg">10억</span></div>
-                                    <div className="flex justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800 font-bold"><span className="text-slate-300 font-bold">북부 배달 (레전드 사유지 기준)</span><span className="text-white font-heavy text-lg">20억</span></div>
-                                    <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20 text-center text-green-400 font-heavy">💡 설국 사유지 앞에서 콜 할 경우 배달료 무료</div>
-                                </div>
-                            </div>
-                        </Modal>
-                    )}
-
-                    {editing && (
-                        <Modal title="장부 내용 수정" onClose={()=>setEditing(null)}>
-                            <form onSubmit={handleEditSave} className="space-y-6 font-bold">
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 font-bold">
-                                    {Object.keys(ITEM_INFO).map(k => (
-                                        <div key={k} className="space-y-1 font-bold">
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase font-bold">{ITEM_INFO[k].label}</label>
-                                            <input type="number" className="input-base font-heavy text-lg py-3" value={editing[k]||0} onChange={e=>setEditing({...editing, [k]: parseInt(e.target.value)||0})} />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-6 bg-red-950/20 rounded-3xl border border-red-900/30 font-bold">
-                                    <label className="text-xs text-red-500 uppercase font-heavy mb-2 block tracking-widest">수정 사유 입력 (필수)</label>
-                                    <textarea className="input-base h-24 font-bold font-bold" value={reason} onChange={e=>setReason(e.target.value)} required placeholder="수정 사유를 입력하세요." />
-                                </div>
-                                <button type="submit" className="btn btn-blue w-full py-5 text-xl font-heavy shadow-xl">수정 완료</button>
-                            </form>
-                        </Modal>
-                    )}
-                </div>
-            );
-        }
-
-        // --- Ledger View ---
-        function LedgerView({ records, range, offset, setOffset }) {
-            const filtered = useMemo(() => records.filter(r => {
-                const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
-            }), [records, range]);
-
-            return (
-                <div className="space-y-8 animate-fade-in font-bold">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <h2 className="text-3xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={28}/> 전체 장부 현황</h2>
-                        <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl font-heavy font-heavy font-heavy font-heavy">
-                            <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all font-heavy"><Icon name="chevron-left" size={24}/></button>
-                            <span className="text-blue-400 whitespace-nowrap font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
-                            <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all font-heavy"><Icon name="chevron-right" size={24}/></button>
-                        </div>
-                    </div>
-                    <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6 font-heavy">판매 사원</th><th className="p-6 font-heavy">구매자</th><th className="p-6 text-right font-heavy">매출액</th><th className="p-6 text-right font-heavy">입금액</th><th className="p-6 text-center font-heavy">상태</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
-                                    {filtered.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors font-heavy">
-                                            <td className="p-6 font-heavy"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.sellerSn})</div></td>
-                                            <td className="p-6 font-heavy"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.buyerSn})</div></td>
-                                            <td className="p-6 text-right font-heavy font-heavy text-lg">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-right text-blue-400 font-heavy text-lg font-heavy">{formatKRW(r.totalAmount * 0.5)}</td>
-                                            <td className="p-6 text-center font-heavy font-heavy"><span className={`badge font-heavy ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{r.status==='completed'?'감사완료':'감사대기'}</span></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        function AuditView({ records, setRecords, user, range, offset, setOffset, allUsers }) {
-            const [tab, setTab] = useState('queue');
-            const [viewItem, setViewItem] = useState(null);
-            const [rsnModal, setRsnModal] = useState(null);
-            const [penaltyDetailUser, setPenaltyDetailUser] = useState(null);
+        const unsubUsers = onSnapshot(usersCol, (snap) => {
+            const list = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+            setAllUsers(list);
             
-            const [reasonText, setReasonText] = useState("");
-            const [penaltyInput, setPenaltyInput] = useState(0);
+            // 로그인 유지 로직 (로컬스토리지에 저장된 SN으로 현재 유저 정보 갱신)
+            const savedSn = localStorage.getItem('seolguk_sn');
+            if (savedSn) {
+                const found = list.find(u => u.sn === savedSn);
+                if (found) setUser(found);
+            }
+        });
 
-            const [editMemo, setEditMemo] = useState("");
-            const [editPenalty, setEditPenalty] = useState(0);
-            const [filter, setFilter] = useState('all');
+        const unsubRecords = onSnapshot(recordsCol, (snap) => {
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            // 클라이언트 사이드 정렬 (복합 쿼리 인덱스 에러 방지)
+            list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            setRecords(list);
+        });
 
-            const pending = records.filter(r => r.status === 'pending' && !r.auditReason);
-            const history = records.filter(r => (r.status === 'completed' || r.auditReason)).filter(r => {
-                const d = new Date(r.auditedAt || r.timestamp);
-                const matchWeek = d >= range.start && d <= range.end;
-                const matchFilter = filter === 'all' || (filter === 'onhold' && r.auditReason);
-                return matchWeek && matchFilter;
-            });
+        const unsubConfig = onSnapshot(configDoc, (snap) => {
+            if (snap.exists()) setConfig(snap.data());
+        });
 
-            return (
-                <div className="space-y-8 animate-fade-in font-bold font-bold font-bold">
-                    <div className="flex gap-4 border-b border-slate-800 pb-4 font-bold">
-                        <button onClick={()=>setAuditTab('queue')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'queue' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>감사 대기열 ({pending.length})</button>
-                        <button onClick={()=>setAuditTab('history')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>처리 기록</button>
-                        <button onClick={()=>setAuditTab('penalty')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'penalty' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>패널티 관리</button>
+        return () => { unsubUsers(); unsubRecords(); unsubConfig(); };
+    }, [fbUser]);
+
+    const weekRange = useMemo(() => {
+        const now = new Date();
+        now.setDate(now.getDate() + (weekOffset * 7));
+        const day = now.getDay();
+        const diff = (day < config.weekStartDay) ? (day + 7 - config.weekStartDay) : (day - config.weekStartDay);
+        const start = new Date(now);
+        start.setDate(now.getDate() - diff); start.setHours(0,0,0,0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
+        return { start, end };
+    }, [weekOffset, config.weekStartDay]);
+
+    const handleLogin = (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const sn = fd.get('sn');
+        const pw = fd.get('password');
+        const found = allUsers.find(u => u.sn === sn && u.password === pw);
+        if (found) {
+            if (!found.approved) return alert('관리자 승인 대기 중입니다.');
+            setUser(found);
+            localStorage.setItem('seolguk_sn', sn);
+        } else {
+            alert('정보가 올바르지 않습니다.');
+        }
+    };
+
+    const handleSignup = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const sn = fd.get('sn');
+        if (allUsers.find(u => u.sn === sn)) return alert('이미 등록된 번호입니다.');
+        
+        const newUser = {
+            sn,
+            nickname: fd.get('nickname'),
+            password: fd.get('password'),
+            role: sn === '0000' ? ROLES.ADMIN : ROLES.EMPLOYEE,
+            approved: sn === '0000',
+            createdAt: serverTimestamp()
+        };
+
+        try {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', `user_${sn}`), newUser);
+            alert('가입 신청 완료! 관리자 승인 후 이용 가능합니다.');
+            setAuthMode('login');
+        } catch (err) {
+            alert('오류가 발생했습니다.');
+        }
+    };
+
+    if (loading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" size={48}/></div>;
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 font-bold text-[#e2e8f0]">
+                <div className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-8 w-full max-w-md shadow-2xl text-center">
+                    <div className="text-6xl mb-4">❄️</div>
+                    <h1 className="text-3xl font-black mb-8">설국 인트라넷</h1>
+                    <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
+                        {['login', 'signup'].map(m => (
+                            <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
+                                {m === 'login' ? '로그인' : '가입신청'}
+                            </button>
+                        ))}
                     </div>
-                    {/* (탭 로직은 생략된 부분 보완하여 렌더링) */}
-                    {tab === 'queue' && (
-                        <div className="grid grid-cols-1 gap-6 font-heavy">
-                            {pending.map(r => (
-                                <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl">
-                                    <div className="flex-1 space-y-4">
-                                        <div className="text-sm font-heavy uppercase">판매자: <span className="text-white text-xl font-heavy font-heavy">{r.sellerNickname} ({r.sellerSn})</span></div>
-                                        <div className="flex gap-12 font-heavy">
-                                            <div className="font-heavy"><p className="text-[10px] text-slate-600 font-heavy uppercase">매출액</p><p className="text-2xl font-heavy">{formatKRW(r.totalAmount)}</p></div>
-                                            <div className="font-heavy"><p className="text-[10px] text-blue-500 uppercase font-heavy">입금액</p><p className="text-2xl text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</p></div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-3 min-w-[240px]">
-                                        <button onClick={()=>{ setRecords(records.map(rec => rec.id === r.id ? {...rec, status: 'completed', auditedAt: new Date().toISOString(), auditorName: user.nickname} : rec)); alert("승인되었습니다."); }} className="btn btn-blue py-5 text-xl font-heavy shadow-lg"><Icon name="check-circle"/> 감사 승인</button>
-                                        <button onClick={()=>setRsnModal(r)} className="btn btn-red py-4 text-lg font-heavy"><Icon name="alert-triangle"/> 보류/패널티</button>
-                                    </div>
+                    <form className="space-y-4" onSubmit={authMode === 'login' ? handleLogin : handleSignup}>
+                        <input name="sn" placeholder="고유번호" className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 w-full outline-none text-center font-bold text-white focus:border-blue-500" required />
+                        {authMode === 'signup' && <input name="nickname" placeholder="닉네임" className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 w-full outline-none text-center font-bold text-white focus:border-blue-500" required />}
+                        <input name="password" type="password" maxLength="4" placeholder="비밀번호 (숫자 4자리)" className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 w-full outline-none text-center font-bold text-white focus:border-blue-500" required />
+                        <button className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-4 rounded-[1rem] text-xl font-black shadow-lg shadow-blue-900/40 transition-all">
+                            {authMode === 'login' ? '입장하기' : '가입신청'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-[#020617] text-[#e2e8f0] flex flex-col md:flex-row font-bold">
+            {/* Sidebar */}
+            <nav className="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-5 flex flex-col gap-2 z-20 sticky top-0 md:h-screen">
+                <div className="flex items-center gap-3 py-6 px-2">
+                    <div className="bg-blue-600 p-2 rounded-xl">❄️</div>
+                    <span className="font-black text-xl uppercase tracking-tighter">설국 인트라넷</span>
+                </div>
+                <div className="space-y-1 mb-6 flex-1">
+                    <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon={<LayoutDashboard size={20}/>} label="대시보드" />
+                    <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon={<ClipboardList size={20}/>} label="전체 장부" />
+                    <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon={<Trophy size={20}/>} label="판매 랭킹" />
+                    {user.role !== ROLES.EMPLOYEE && (
+                        <div className="mt-8 pt-4 border-t border-slate-800/50">
+                            <p className="text-[10px] text-slate-600 uppercase font-black px-4 mb-3 tracking-widest text-center">관리 시스템</p>
+                            <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon={<ShieldCheck size={20}/>} label="감사 데스크" color="indigo" />
+                        </div>
+                    )}
+                </div>
+                <div className="pt-4 border-t border-slate-800">
+                    {user.role === ROLES.ADMIN && <NavItem active={activeTab==='admin'} onClick={()=>setActiveTab('admin')} icon={<Settings size={20}/>} label="시스템 설정" color="slate" />}
+                    <div className="bg-[#020617] p-4 rounded-[1rem] border border-slate-800 mt-2">
+                        <div className="text-sm font-black truncate">{user.nickname}</div>
+                        <div className="text-[10px] text-blue-500">{user.role} ({user.sn})</div>
+                        <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_sn');}} className="mt-3 w-full py-1.5 bg-slate-800 hover:bg-red-900/20 text-red-400 rounded-lg text-xs transition-all">로그아웃</button>
+                    </div>
+                </div>
+            </nav>
+
+            {/* Main Content */}
+            <main className="flex-1 p-5 md:p-10 max-w-7xl mx-auto w-full">
+                {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} />}
+                {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
+                {activeTab === 'ranking' && <RankingView records={records} />}
+                {activeTab === 'audit' && <AuditView records={records} user={user} range={weekRange} allUsers={allUsers} />}
+                {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} />}
+            </main>
+        </div>
+    );
+}
+
+const NavItem = ({ active, onClick, icon, label, color = "blue" }) => (
+    <button onClick={onClick} className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${active ? (color === 'indigo' ? 'bg-indigo-600' : color === 'slate' ? 'bg-slate-700' : 'bg-blue-600') + ' text-white shadow-lg' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}>
+        {icon}<span className="font-bold">{label}</span>
+    </button>
+);
+
+// --- Sub-Views ---
+
+function DashboardView({ user, records, config }) {
+    const initialForm = { buyerSn: '', buyerNickname: '', note: '', fullpack: 0, painkiller: 0, honeyjelly: 0, honeystick: 0, parachute: 0, elixir: 0 };
+    const [form, setForm] = useState(initialForm);
+    const [showPrices, setShowPrices] = useState(false);
+    
+    const total = useMemo(() => Object.keys(PRICES).reduce((s, k) => s + (parseInt(form[k]) || 0) * PRICES[k], 0), [form]);
+    const isExceeded = useMemo(() => Object.keys(ITEM_INFO).some(k => (parseInt(form[k]) || 0) > ITEM_INFO[k].max), [form]);
+
+    const submitForm = async (e) => {
+        e.preventDefault();
+        if (total === 0 || isExceeded) return;
+        
+        const newRec = {
+            ...form,
+            sellerUid: user.uid,
+            sellerNickname: user.nickname,
+            sellerSn: user.sn,
+            totalAmount: total,
+            status: 'pending',
+            auditReason: '',
+            createdAt: serverTimestamp(),
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'records'), newRec);
+            setForm(initialForm);
+            alert("장부가 제출되었습니다.");
+        } catch (err) {
+            alert("제출 중 오류가 발생했습니다.");
+        }
+    };
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            {config.eventNotice && (
+                <div className="bg-gradient-to-r from-slate-800 via-blue-900 to-slate-800 p-5 rounded-2xl border border-blue-500/30 flex items-center justify-center gap-3 shadow-xl">
+                    <Sparkles className="text-yellow-400 animate-pulse" />
+                    <p className="text-white text-lg font-black text-center">{config.eventNotice}</p>
+                    <Sparkles className="text-yellow-400 animate-pulse" />
+                </div>
+            )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div onClick={()=>setShowPrices(true)} className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-6 cursor-pointer hover:bg-slate-800 flex justify-between items-center group shadow-lg transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-blue-600/10 p-4 rounded-2xl group-hover:bg-blue-600/20 text-blue-500"><Scroll size={32}/></div>
+                        <div><p className="text-slate-500 text-xs font-black uppercase">Guide</p><p className="text-xl font-black text-white">가격표 및 배달료 확인</p></div>
+                    </div>
+                    <ChevronRight className="text-slate-700 group-hover:text-blue-500" />
+                </div>
+                <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center gap-5 shadow-lg">
+                    <div className="bg-green-600/10 p-4 rounded-2xl text-green-500"><Percent size={32}/></div>
+                    <div><h3 className="text-slate-500 text-xs font-black uppercase">Rule</h3><p className="text-2xl font-black text-white">판매 매출의 50% 입금</p></div>
+                </div>
+            </div>
+
+            <div className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-8 shadow-2xl">
+                <h2 className="text-2xl font-black mb-8 flex items-center gap-2 text-white"><Edit3 className="text-blue-500"/> 판매 기록 작성</h2>
+                <form onSubmit={submitForm} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    <div className="lg:col-span-3 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <input className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 text-white outline-none focus:border-blue-500" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="구매자 고유번호" />
+                            <input className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 text-white outline-none focus:border-blue-500" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="구매자 닉네임" />
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {Object.keys(ITEM_INFO).map(k => (
+                                <div key={k}>
+                                    <label className="text-xs text-slate-500 mb-1 flex items-center gap-1">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
+                                    <input type="number" className={`bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 w-full text-white outline-none focus:border-blue-500 ${(parseInt(form[k]) > ITEM_INFO[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${ITEM_INFO[k].max}`} />
                                 </div>
                             ))}
                         </div>
-                    )}
-                    {tab === 'history' && (
-                        <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
-                             <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy font-heavy"><th className="p-6 font-heavy">처리일시</th><th className="p-6 font-heavy">판매자</th><th className="p-6 text-center font-heavy">상태</th><th className="p-6 text-center font-heavy">상세/관리</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
-                                    {history.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
-                                            <td className="p-6 text-sm text-slate-500 font-mono font-heavy">{new Date(r.auditedAt || r.timestamp).toLocaleDateString()}</td>
-                                            <td className="p-6 font-heavy font-heavy">{r.sellerNickname} <span className="text-[10px] opacity-40">({r.sellerSn})</span></td>
-                                            <td className="p-6 text-center font-heavy font-heavy font-heavy"><span className={`badge ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400 font-heavy'}`}>{r.status==='completed'?(r.auditReason?'보류 후 완료':'완료'):'보류'}</span></td>
-                                            <td className="p-6 text-center font-heavy font-heavy">
-                                                <div className="flex justify-center gap-10">
-                                                    <button onClick={()=>{ setViewItem({...r}); setEditMemo(r.auditMemo||''); setEditPenalty(r.penaltyPoints||0); }} className="btn bg-slate-800 px-6 py-3 text-sm font-heavy"><Icon name="zoom-in" size={16}/> 상세보기</button>
-                                                    <button onClick={()=>{if(window.confirm(`${r.sellerNickname}의 장부를 삭제합니까?`)) setRecords(records.filter(rec=>rec.id!==r.id));}} className="btn btn-red px-3 py-3 text-xs transition-all font-heavy"><Icon name="trash-2" size={16}/></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                    {tab === 'penalty' && (
-                        <div className="card shadow-2xl font-heavy font-heavy">
-                            <h2 className="text-2xl text-red-500 font-heavy mb-8 flex items-center gap-2"><Icon name="alert-circle" size={28}/> 사원 패널티 관리 시스템</h2>
-                            <table className="w-full text-left font-heavy font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th></th><th className="p-6 font-heavy">사원명</th><th className="p-6 text-center font-heavy">누적 점수</th><th className="p-6 text-right font-heavy font-heavy">관리</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
-                                    {allUsers.filter(u=>u.approved).map(u => {
-                                        const myP = records.filter(r => r.sellerUid === u.uid && (parseInt(r.penaltyPoints) > 0));
-                                        const sum = myP.reduce((s, r) => s + (parseInt(r.penaltyPoints)||0), 0);
-                                        return (
-                                            <tr key={u.uid} className="hover:bg-slate-800/40 transition-all font-heavy font-heavy font-heavy">
-                                                <td className="p-6 w-16 text-center font-heavy"><div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center font-heavy text-slate-700 border border-slate-800 font-heavy">👤</div></td>
-                                                <td className="p-6 font-heavy font-heavy font-heavy">{u.nickname} <span className="text-xs text-slate-600 font-heavy font-heavy">#{u.sn}</span></td>
-                                                <td className="p-6 text-center text-4xl text-red-500 font-heavy tracking-tighter font-heavy font-heavy font-heavy">{sum}점</td>
-                                                <td className="p-6 text-right font-heavy font-heavy font-heavy font-heavy font-heavy"><button onClick={()=>setPenaltyDetailUser(u)} className="btn bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white px-5 py-2 text-xs font-heavy font-heavy font-heavy">패널티 사유 확인</button></td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                    {rsnModal && (
-                        <Modal title="감사 보류 및 패널티 부여" onClose={()=>setRsnModal(null)}>
-                            <div className="space-y-6 font-heavy font-heavy">
-                                <div className="space-y-2 font-heavy font-heavy font-heavy font-heavy"><label className="text-sm text-red-400 font-heavy uppercase font-heavy font-heavy">보류 사유</label><textarea className="input-base h-32 font-heavy font-heavy" value={reasonText} onChange={e=>setReasonText(e.target.value)} required /></div>
-                                <div className="space-y-2 font-heavy font-heavy font-heavy font-heavy"><label className="text-sm text-red-500 font-heavy uppercase font-heavy font-heavy">패널티 점수</label><input type="number" className="input-base text-2xl font-heavy text-red-500 font-heavy font-heavy" value={penaltyInput} onChange={e=>setPenaltyInput(parseInt(e.target.value||0))} /></div>
-                                <button onClick={()=>{
-                                    if(!reasonText.trim()) return alert("사유 필수");
-                                    setRecords(records.map(r=>r.id===rsnModal.id?{...r, status:'pending', auditReason:reasonText, penaltyPoints:penaltyInput, auditedAt:new Date().toISOString(), auditorName:user.nickname}:r));
-                                    setRsnModal(null); setReasonText(""); setPenaltyInput(0);
-                                }} className="btn btn-red w-full py-5 text-xl font-heavy font-heavy">보류 확정</button>
-                            </div>
-                        </Modal>
-                    )}
-                    {viewItem && (
-                        <Modal title="장부 상세 분석 리포트" onClose={()=>setViewItem(null)}>
-                            <div className="space-y-6 font-heavy font-heavy font-heavy font-heavy">
-                                <div className="grid grid-cols-2 gap-4 font-heavy font-heavy font-heavy">
-                                    <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 font-heavy"><p className="text-[10px] text-slate-600 uppercase mb-2 font-heavy font-heavy">기입 시각</p><p className="text-lg font-heavy font-heavy">{new Date(viewItem.timestamp).toLocaleString()}</p></div>
-                                    <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 font-heavy font-heavy font-heavy"><p className="text-[11px] text-blue-600 uppercase mb-2 font-heavy font-heavy font-heavy">{viewItem.auditReason ? '보류 처리 감사 완료 일시' : '감사 완료 시각'}</p><p className="text-lg text-blue-400 font-heavy font-heavy font-heavy">{viewItem.auditedAt ? new Date(viewItem.auditedAt).toLocaleString() : '진행중'}</p></div>
-                                </div>
-                                <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 font-heavy font-heavy font-heavy"><p className="text-[10px] text-slate-500 uppercase mb-2 font-heavy font-heavy">비고 (Seller)</p><p className="text-xl font-heavy font-heavy leading-relaxed">{viewItem.note || '없음'}</p></div>
-                                {viewItem.auditReason && <div className="bg-slate-950 p-6 rounded-3xl border border-red-900/40 font-heavy font-heavy font-heavy font-heavy"><p className="text-[10px] text-red-500 uppercase mb-2 font-heavy">보류 사유</p><p className="text-xl text-red-400 font-heavy leading-relaxed font-heavy font-heavy">{viewItem.auditReason}</p></div>}
-                                <div className="bg-slate-950 p-8 rounded-3xl border border-indigo-900/30 space-y-6 font-heavy font-heavy font-heavy font-heavy shadow-inner">
-                                    <h4 className="text-sm text-indigo-500 uppercase font-heavy tracking-widest border-b border-indigo-900/20 pb-3 font-heavy font-heavy">감사팀 후속 조치 및 패널티 관리</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end font-heavy font-heavy font-heavy">
-                                        <div className="space-y-2 font-heavy font-heavy font-heavy"><label className="text-xs text-slate-500 font-heavy font-heavy">내부 메모</label><textarea className="input-base h-32 text-indigo-100 font-heavy" value={editMemo} onChange={e=>setEditMemo(e.target.value)} /></div>
-                                        <div className="space-y-6 font-heavy font-heavy font-heavy font-heavy">
-                                            <div className="space-y-2 font-heavy font-heavy">
-                                                <label className="text-xs text-red-500 font-heavy uppercase tracking-widest font-heavy">패널티 수정</label>
-                                                <input type="number" className="input-base text-4xl text-red-500 font-heavy font-heavy" value={editPenalty} onChange={e=>setEditPenalty(parseInt(e.target.value)||0)} />
-                                            </div>
-                                            <button onClick={()=>{ setRecords(records.map(r=>r.id===viewItem.id ? {...r, auditMemo: editMemo, penaltyPoints: editPenalty} : r)); alert("저장됨"); }} className="btn btn-blue w-full py-5 text-xl font-heavy font-heavy font-heavy shadow-lg">메모 및 패널티 저장</button>
-                                        </div>
-                                    </div>
-                                    <div className="pt-6 flex gap-4 border-t border-indigo-900/20 font-heavy font-heavy">
-                                        {viewItem.status === 'pending' && <button onClick={()=>{ setRecords(records.map(r=>r.id===viewItem.id ? {...r, status:'completed', auditedAt:new Date().toISOString(), auditMemo:editMemo, penaltyPoints:editPenalty} : r)); setViewItem(null); alert("승인 완료"); }} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-6 rounded-2xl font-heavy text-2xl font-heavy font-heavy shadow-xl">감사 완료로 승인</button>}
-                                        {viewItem.status === 'completed' && viewItem.auditReason && <button onClick={()=>{ setRecords(records.map(r=>r.id===viewItem.id ? {...r, status:'pending'} : r)); setViewItem(null); alert("다시 보류됨"); }} className="flex-1 bg-red-900/40 hover:bg-red-600 text-red-500 hover:text-white py-6 rounded-2xl font-heavy text-2xl font-heavy font-heavy border border-red-600/30 font-heavy">다시 보류로 변경</button>}
-                                    </div>
-                                </div>
-                                <button onClick={()=>setViewItem(null)} className="btn bg-slate-800 w-full py-5 text-xl font-heavy mt-4 font-heavy font-heavy font-heavy font-heavy font-heavy">닫기 (ESC)</button>
-                            </div>
-                        </Modal>
-                    )}
-                    {penaltyDetailUser && (
-                        <Modal title={`${penaltyDetailUser.nickname} 님의 패널티 부여 사유 목록`} onClose={()=>setPenaltyDetailUser(null)}>
-                            <div className="space-y-4 font-heavy font-heavy">
-                                {records.filter(r => r.sellerUid === penaltyDetailUser.uid && (r.status === 'pending' || r.auditReason !== '')).map(r => (
-                                    <div key={r.id} className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800 font-heavy shadow-inner font-heavy font-heavy font-heavy">
-                                        <div className="flex justify-between items-start mb-4 font-heavy">
-                                            <div className="space-y-1">
-                                                <div className="text-xs text-slate-600 uppercase tracking-widest font-heavy">{new Date(r.timestamp).toLocaleString()} / 감사관: {r.auditorName || '미지정'}</div>
-                                                <div className="text-xl text-white font-heavy">상태: <span className={r.status === 'completed' ? 'text-green-500' : 'text-red-400 font-heavy'}>{r.status === 'completed' ? '보류 후 완료' : '현재 보류 중'}</span></div>
-                                            </div>
-                                            <div className="text-right font-heavy">
-                                                <div className="text-[10px] text-red-500 uppercase font-heavy font-heavy">Penalty</div>
-                                                <div className="text-3xl text-red-500 font-heavy font-heavy">{r.penaltyPoints || 0}점</div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                                            <div className="bg-slate-900/50 p-4 rounded-xl"><span className="text-[10px] text-slate-500 block mb-1 font-heavy">보류 사유</span><p className="text-red-400 font-heavy font-heavy font-heavy">{r.auditReason || '기록 없음'}</p></div>
-                                            <div className="bg-slate-900/50 p-4 rounded-xl"><span className="text-[10px] text-slate-500 block mb-1 font-heavy">장부 비고</span><p className="text-slate-400 font-heavy font-heavy font-heavy font-heavy font-heavy">{r.note || '없음'}</p></div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </Modal>
-                    )}
-                </div>
-            );
-        }
-
-        // --- Ranking View ---
-        function RankingView({ records }) {
-            const data = useMemo(() => {
-                const s = {};
-                records.filter(r => r.status === 'completed').forEach(r => {
-                    if (!s[r.sellerUid]) s[r.sellerUid] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0, deposit: 0 };
-                    s[r.sellerUid].count++; s[r.sellerUid].total += r.totalAmount; s[r.sellerUid].deposit += r.totalAmount * 0.5;
-                });
-                return Object.values(s).sort((a, b) => b.count - a.count);
-            }, [records]);
-
-            return (
-                <div className="space-y-12 animate-fade-in font-bold">
-                    <div className="text-center space-y-4">
-                        <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2 animate-pulse font-heavy"><Icon name="award" size={64} className="text-yellow-500"/></div>
-                        <h2 className="text-5xl text-white font-heavy uppercase tracking-tighter italic tracking-[-0.05em] font-heavy">설국 판매 명예의 전당</h2>
-                        <p className="text-slate-500 tracking-widest uppercase text-xs font-heavy font-heavy font-heavy">Performance Leaderboard</p>
+                        <input className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 w-full text-white outline-none focus:border-blue-500" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="비고 (특이사항)" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end pt-16 relative font-heavy font-heavy">
-                        {[1, 0, 2].map((idx) => {
-                            const item = data[idx]; if (!item) return <div key={idx} className="hidden md:block"></div>;
-                            const colors = ['border-yellow-500 text-yellow-500 bg-yellow-500/10 shadow-yellow-900/20', 'border-slate-300 text-slate-300 bg-slate-300/10 shadow-slate-900/20 font-heavy', 'border-amber-600 text-amber-600 bg-amber-600/10 shadow-amber-900/20 font-heavy font-heavy font-heavy'];
-                            const heights = ['h-80', 'h-64', 'h-52'];
-                            return (
-                                <div key={idx} className={`flex flex-col items-center gap-4 order-${idx} font-heavy font-heavy`}>
-                                    <div className={`w-full max-w-[260px] ${heights[idx]} ${colors[idx]} border-t-8 rounded-t-[3rem] flex flex-col items-center justify-end pb-12 relative shadow-2xl transition-all hover:scale-105 font-heavy font-heavy font-heavy`}>
-                                        <div className="absolute -top-16 text-8xl font-heavy font-heavy font-heavy">{idx === 0 ? '👑' : idx === 1 ? '🥈' : '🥉'}</div>
-                                        <span className="text-6xl mb-2 italic tracking-tighter font-heavy font-heavy font-heavy font-heavy font-heavy">{idx === 0 ? 1 : idx === 1 ? 2 : 3}위</span>
-                                        <span className="text-3xl text-white font-heavy font-heavy font-heavy font-heavy font-heavy">{item.name}</span>
-                                        <span className="text-xs opacity-40 font-mono font-heavy font-heavy font-heavy font-heavy">({item.sn})</span>
-                                    </div>
+                    <div className="lg:col-span-2 bg-[#020617] p-8 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-inner font-black">
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center"><span className="text-slate-500">총 매출</span><div className="text-right"><p className="text-3xl text-white">{formatKRW(total)}</p><p className="text-xs text-slate-600">({total.toLocaleString()}원)</p></div></div>
+                            <div className="h-px bg-slate-900"></div>
+                            <div className="flex justify-between items-center"><span className="text-blue-500">공계 입금(50%)</span><div className="text-right"><p className="text-3xl text-blue-400">{formatKRW(total * 0.5)}</p><p className="text-xs text-blue-900">({(total * 0.5).toLocaleString()}원)</p></div></div>
+                        </div>
+                        {isExceeded && <p className="text-red-500 text-center text-sm animate-bounce mt-4">⚠️ 수량 초과</p>}
+                        <button type="submit" disabled={isExceeded} className={`w-full py-5 rounded-[1rem] text-2xl font-black mt-4 shadow-xl transition-all ${isExceeded ? 'bg-red-600 opacity-50' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-900/40'}`}>장부 제출하기</button>
+                    </div>
+                </form>
+            </div>
+
+            {showPrices && (
+                <Modal title="설국 가격표 및 배달 서비스" onClose={()=>setShowPrices(false)}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        {Object.keys(ITEM_INFO).map(k => (
+                            <div key={k} className="bg-[#020617] p-5 rounded-3xl flex items-center gap-4 border border-slate-800">
+                                <div className="text-4xl">{ITEM_INFO[k].emoji}</div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between font-black"><span className="text-white text-lg">{ITEM_INFO[k].label}</span><span className="text-blue-400">{formatKRW(PRICES[k])}</span></div>
+                                    <p className="text-[10px] text-slate-500 uppercase">{ITEM_INFO[k].desc}</p>
                                 </div>
-                            );
-                        })}
+                            </div>
+                        ))}
                     </div>
-                    <div className="card p-0 overflow-hidden font-heavy font-heavy font-heavy shadow-2xl font-heavy font-heavy font-heavy">
-                        <table className="w-full text-left font-heavy font-heavy font-heavy font-heavy font-heavy">
-                            <thead className="bg-slate-800 text-slate-500 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-800 font-heavy font-heavy font-heavy font-heavy font-heavy"><th className="p-6">순위</th><th className="p-6 font-heavy font-heavy font-heavy font-heavy font-heavy">사원명</th><th className="p-6 text-center font-heavy font-heavy font-heavy font-heavy font-heavy">판매 건수</th><th className="p-6 text-right font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">총 매출</th><th className="p-6 text-right text-blue-400 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">공계 입금</th></tr></thead>
-                            <tbody className="divide-y divide-slate-800 text-2xl text-white tracking-tighter font-heavy font-heavy font-heavy">
-                                {data.map((item, idx) => (
-                                    <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/5 font-heavy' : ''} hover:bg-slate-800/50 font-heavy font-heavy font-heavy`}>
-                                        <td className="p-6 font-heavy font-heavy font-heavy"><span className={`w-12 h-12 rounded-2xl flex items-center justify-center text-base shadow-inner font-heavy font-heavy ${idx === 0 ? 'bg-yellow-500 text-black shadow-yellow-400/20' : idx === 1 ? 'bg-slate-400 text-black shadow-slate-200/20' : idx === 2 ? 'bg-amber-700 text-white shadow-amber-400/20 font-heavy' : 'bg-slate-800 text-slate-500 font-heavy'}`}>{idx+1}</span></td>
-                                        <td className="p-6 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy"><div className="text-2xl font-heavy font-heavy tracking-tighter font-heavy font-heavy font-heavy">{item.name}</div><div className="text-xs text-slate-600 font-heavy font-heavy font-heavy font-heavy font-heavy">SN: ({item.sn})</div></td>
-                                        <td className="p-6 text-center font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy"><span className="text-blue-500 font-black text-4xl font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">{item.count}</span><span className="text-[10px] text-slate-600 ml-2 uppercase font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">건</span></td>
-                                        <td className="p-6 text-right font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">{formatKRW(item.total)}</td>
-                                        <td className="p-6 text-right text-blue-400 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">{formatKRW(item.deposit)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="bg-blue-900/10 p-8 rounded-3xl border border-blue-500/20 space-y-4">
+                        <h4 className="text-xl text-blue-400 flex items-center gap-2 font-black mb-2"><Truck size={24}/> 배달료 가이드</h4>
+                        <div className="space-y-3">
+                            <div className="flex justify-between p-4 bg-[#020617] rounded-2xl border border-slate-800 font-bold"><span className="text-slate-300">남부 배달 (레전드 사유지 기준)</span><span className="text-white font-black text-lg">10억</span></div>
+                            <div className="flex justify-between p-4 bg-[#020617] rounded-2xl border border-slate-800 font-bold"><span className="text-slate-300">북부 배달 (레전드 사유지 기준)</span><span className="text-white font-black text-lg">20억</span></div>
+                            <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20 text-center text-green-400 font-black">💡 설국 사유지 앞에서 콜 할 경우 배달료 무료</div>
+                        </div>
                     </div>
+                </Modal>
+            )}
+        </div>
+    );
+}
+
+function LedgerView({ records, range, offset, setOffset }) {
+    const filtered = useMemo(() => records.filter(r => {
+        const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
+    }), [records, range]);
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 className="text-3xl text-white flex items-center gap-3 font-black"><ClipboardList className="text-blue-500" size={28}/> 전체 장부 현황</h2>
+                <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl">
+                    <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all"><ChevronLeft size={24}/></button>
+                    <span className="text-blue-400 whitespace-nowrap">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
+                    <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all"><ChevronRight size={24}/></button>
                 </div>
-            );
-        }
+            </div>
+            <div className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-0 overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left font-black">
+                        <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-black">
+                            <tr className="border-b border-slate-700">
+                                <th className="p-6">판매 사원</th>
+                                <th className="p-6">구매자</th>
+                                <th className="p-6 text-right">매출액</th>
+                                <th className="p-6 text-right">입금액</th>
+                                <th className="p-6 text-center">상태</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800 text-white">
+                            {filtered.map(r => (
+                                <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
+                                    <td className="p-6"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
+                                    <td className="p-6"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
+                                    <td className="p-6 text-right text-lg">{formatKRW(r.totalAmount)}</td>
+                                    <td className="p-6 text-right text-blue-400 text-lg">{formatKRW(r.totalAmount * 0.5)}</td>
+                                    <td className="p-6 text-center">
+                                        <span className={`px-3 py-1 rounded-full text-[10px] ${r.status==='completed'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>
+                                            {r.status==='completed'?'감사완료':'감사대기'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
 
-        // --- Admin View ---
-        function AdminView({ allUsers, setAllUsers, config, setConfig }) {
-            const [showPw, setShowPw] = useState({});
-            const [editNick, setEditNick] = useState(null);
-            const [tempNick, setTempNick] = useState('');
-            const [noticeIn, setNoticeIn] = useState(config.eventNotice || "");
+function RankingView({ records }) {
+    const data = useMemo(() => {
+        const s = {};
+        records.filter(r => r.status === 'completed').forEach(r => {
+            if (!s[r.sellerUid]) s[r.sellerUid] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0, deposit: 0 };
+            s[r.sellerUid].count++; s[r.sellerUid].total += r.totalAmount; s[r.sellerUid].deposit += r.totalAmount * 0.5;
+        });
+        return Object.values(s).sort((a, b) => b.count - a.count);
+    }, [records]);
 
-            const handleNoticeSave = () => {
-                setConfig({...config, eventNotice: noticeIn}); alert('공지가 성공적으로 반영되었습니다.');
-            };
-
-            const updateUser = (uid, data) => setAllUsers(allUsers.map(u => u.uid === uid ? { ...u, ...data } : u));
-            const deleteUser = (uid) => setAllUsers(allUsers.filter(u => u.uid !== uid));
-
-            return (
-                <div className="space-y-10 animate-fade-in font-bold font-bold font-bold">
-                    <section className="card shadow-xl space-y-8 font-heavy font-heavy font-heavy font-heavy font-heavy">
-                        <div className="space-y-4 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">
-                            <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy"><Icon name="megaphone" /> 대시보드 공지사항 관리</h2>
-                            <textarea className="input-base h-32 font-bold text-white font-heavy font-heavy font-heavy" value={noticeIn} onChange={(e)=>setNoticeIn(e.target.value)} placeholder="공지 입력" />
-                            <div className="flex justify-between items-center font-heavy font-heavy font-heavy font-heavy font-heavy">
-                                <p className="text-[10px] text-slate-600 font-heavy uppercase font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">Promotional text shown on main dashboard</p>
-                                <button onClick={handleNoticeSave} className="btn btn-blue px-8 py-3 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">공지 반영하기</button>
+    return (
+        <div className="space-y-12 animate-in fade-in duration-500">
+            <div className="text-center space-y-4">
+                <div className="inline-block bg-yellow-500/10 p-6 rounded-3xl mb-2"><Award size={64} className="text-yellow-500 animate-bounce"/></div>
+                <h2 className="text-5xl text-white font-black uppercase italic tracking-tighter">설국 판매 명예의 전당</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end pt-16">
+                {[1, 0, 2].map((idx) => {
+                    const item = data[idx]; if (!item) return <div key={idx} className="hidden md:block"></div>;
+                    const colors = ['border-yellow-500 text-yellow-500 bg-yellow-500/10 shadow-yellow-900/20', 'border-slate-300 text-slate-300 bg-slate-300/10 shadow-slate-900/20', 'border-amber-600 text-amber-600 bg-amber-600/10 shadow-amber-900/20'];
+                    const heights = ['h-80', 'h-64', 'h-52'];
+                    return (
+                        <div key={idx} className="flex flex-col items-center gap-4">
+                            <div className={`w-full max-w-[260px] ${heights[idx]} ${colors[idx]} border-t-8 rounded-t-[3rem] flex flex-col items-center justify-end pb-12 relative shadow-2xl transition-all hover:scale-105`}>
+                                <div className="absolute -top-16 text-8xl">{idx === 0 ? '👑' : idx === 1 ? '🥈' : '🥉'}</div>
+                                <span className="text-6xl mb-2 italic font-black">{idx === 0 ? 1 : idx === 1 ? 2 : 3}위</span>
+                                <span className="text-3xl text-white font-black">{item.name}</span>
+                                <span className="text-xs opacity-40 font-mono">({item.sn})</span>
                             </div>
                         </div>
-                        <div className="h-px bg-slate-800 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy"></div>
-                        <div className="space-y-4 font-heavy font-heavy font-heavy font-heavy font-heavy">
-                            <h2 className="text-2xl text-indigo-400 flex items-center gap-3 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy"><Icon name="calendar" /> 정산 기준일 설정</h2>
-                            <div className="flex flex-wrap gap-2 font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">
-                                {WEEK_DAYS.map((day, idx) => (
-                                    <button key={day} onClick={()=>setConfig({...config, weekStartDay: idx})} className={`px-5 py-3 rounded-xl transition-all border font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy ${config.weekStartDay === idx ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg font-heavy' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>매주 {day}</button>
-                                ))}
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function AuditView({ records, user, allUsers }) {
+    const pending = records.filter(r => r.status === 'pending');
+
+    const approveRecord = async (id) => {
+        try {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'records', id);
+            await updateDoc(docRef, { status: 'completed', auditedAt: serverTimestamp(), auditorName: user.nickname });
+            alert("승인되었습니다.");
+        } catch (err) {
+            alert("오류가 발생했습니다.");
+        }
+    };
+
+    const deleteRecord = async (id) => {
+        if (!window.confirm("정말 삭제하시겠습니까?")) return;
+        try {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
+        } catch (err) {
+            alert("삭제 중 오류가 발생했습니다.");
+        }
+    };
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-500">
+            <h2 className="text-3xl font-black text-white flex items-center gap-3"><ShieldCheck className="text-indigo-500" size={32}/> 감사 대기열</h2>
+            <div className="grid grid-cols-1 gap-6">
+                {pending.length === 0 ? (
+                    <div className="bg-[#0f172a] border border-dashed border-slate-700 p-12 text-center rounded-3xl text-slate-500 font-bold">대기 중인 장부가 없습니다.</div>
+                ) : (
+                    pending.map(r => (
+                        <div key={r.id} className="bg-[#0f172a] border-l-8 border-l-blue-600 rounded-[1.5rem] p-8 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl">
+                            <div className="flex-1 space-y-4">
+                                <div className="text-sm">판매자: <span className="text-white text-xl font-black">{r.sellerNickname} ({r.sellerSn})</span></div>
+                                <div className="flex gap-12">
+                                    <div><p className="text-[10px] text-slate-600 uppercase font-black">매출액</p><p className="text-2xl font-black">{formatKRW(r.totalAmount)}</p></div>
+                                    <div><p className="text-[10px] text-blue-500 uppercase font-black">입금액</p><p className="text-2xl text-blue-400 font-black">{formatKRW(r.totalAmount * 0.5)}</p></div>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => approveRecord(r.id)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl flex items-center gap-2 font-black shadow-lg"><CheckCircle size={20}/> 감사 승인</button>
+                                <button onClick={() => deleteRecord(r.id)} className="bg-red-500/10 hover:bg-red-600 text-red-500 hover:text-white px-4 py-4 rounded-xl transition-all border border-red-500/20"><Trash2 size={20}/></button>
                             </div>
                         </div>
-                    </section>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+}
 
-                    <section className="space-y-6 font-heavy font-heavy font-heavy font-heavy font-heavy">
-                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy font-heavy font-heavy px-2 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 리스트 관리</h2>
-                        <div className="card p-0 overflow-hidden shadow-2xl font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy">
-                            <table className="w-full text-left font-heavy font-heavy font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6 font-heavy">SN</th><th className="p-6 font-heavy font-heavy">닉네임</th><th className="p-6 text-center font-heavy">PW</th><th className="p-6 text-center font-heavy">권한</th><th className="p-6 text-right font-heavy font-heavy">삭제</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy font-heavy">
-                                    {allUsers.map(u => (
-                                        <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors font-heavy">
-                                            <td className="p-6 font-heavy font-heavy font-heavy"><div className="w-20 h-16 bg-slate-950 rounded-xl flex items-center justify-center font-heavy text-blue-500 border border-slate-800 font-heavy">{u.sn}</div></td>
-                                            <td className="p-6 font-heavy font-heavy font-heavy font-heavy">{editNick === u.uid ? ( <div className="flex gap-2"><input className="input-base py-2 w-32 font-heavy font-heavy" value={tempNick} onChange={e=>setTempNick(e.target.value)}/><button onClick={()=>{updateUser(u.uid, {nickname:tempNick}); setEditNick(null);}} className="btn btn-blue px-3 py-1 text-xs font-heavy">확인</button></div> ) : ( <div className="text-2xl flex items-center gap-2 font-heavy">{u.nickname} <button onClick={()=>{setEditNick(u.uid); setTempNick(u.nickname);}} className="text-slate-600 hover:text-blue-500 font-heavy"><Icon name="edit-3" size={14}/></button></div> )}</td>
-                                            <td className="p-6 text-center font-heavy font-heavy font-heavy font-heavy"><div className="flex items-center justify-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 w-max mx-auto font-heavy font-heavy font-heavy"><span className="text-lg tracking-[0.4em] font-heavy font-heavy font-heavy">{showPw[u.uid] ? u.password : '****'}</span><button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors font-heavy font-heavy font-heavy"><Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={18}/></button></div></td>
-                                            <td className="p-6 text-center font-heavy font-heavy font-heavy font-heavy"><div className="flex flex-wrap justify-center gap-1.5">{!u.approved && <button onClick={()=>updateUser(u.uid, {approved:true})} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-heavy font-heavy font-heavy font-heavy">승인하기</button>}{u.approved && [ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN].map(role => ( <button key={role} onClick={()=>updateUser(u.uid, {role})} className={`px-2 py-1.5 rounded-lg text-[10px] font-heavy font-heavy font-heavy font-heavy ${u.role === role ? 'bg-indigo-600 text-white' : 'bg-slate-950 text-slate-500 border border-slate-800'}`}>{role}</button> )) }</div></td>
-                                            <td className="p-6 text-right font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy font-heavy"><button onClick={()=>{if(window.confirm(`${u.nickname}(${u.sn})를 정말 삭제하시겠습니까?`)) deleteUser(u.uid);}} disabled={u.sn === '0000' && u.role === ROLES.ADMIN} className={`p-2 transition-colors bg-red-500/5 rounded-xl font-heavy font-heavy ${u.sn === '0000' && u.role === ROLES.ADMIN ? 'opacity-20 cursor-not-allowed font-heavy font-heavy font-heavy' : 'text-red-900 hover:text-red-500'}`}><Icon name="trash-2" size={18}/></button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-                </div>
-            );
+function AdminView({ allUsers, config }) {
+    const [notice, setNotice] = useState(config.eventNotice || "");
+
+    const updateConfig = async () => {
+        try {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), { ...config, eventNotice: notice });
+            alert("설정이 저장되었습니다.");
+        } catch (err) {
+            alert("저장 실패");
         }
+    };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+    const approveUser = async (uid) => {
+        try {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { approved: true });
+            alert("승인 완료");
+        } catch (err) {
+            alert("실패");
+        }
+    };
+
+    return (
+        <div className="space-y-10 animate-in fade-in duration-500">
+            <section className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-8 space-y-8">
+                <div className="space-y-4">
+                    <h2 className="text-2xl text-blue-400 flex items-center gap-3 font-black"><Megaphone /> 대시보드 공지 관리</h2>
+                    <textarea className="bg-[#020617] border border-[#1e293b] rounded-[1rem] p-4 w-full h-32 text-white outline-none focus:border-blue-500" value={notice} onChange={(e)=>setNotice(e.target.value)} placeholder="공지 사항을 입력하세요..." />
+                    <button onClick={updateConfig} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-black transition-all">공지 반영하기</button>
+                </div>
+            </section>
+
+            <section className="space-y-6">
+                <h2 className="text-2xl text-white flex items-center gap-3 font-black px-2"><Settings className="text-blue-500"/> 사원 리스트 관리</h2>
+                <div className="bg-[#0f172a] border border-[#1e293b] rounded-[1.5rem] p-0 overflow-hidden shadow-2xl">
+                    <table className="w-full text-left font-black">
+                        <thead className="bg-slate-800 text-slate-400 text-[11px] uppercase tracking-widest font-black">
+                            <tr><th className="p-6">SN</th><th className="p-6">닉네임</th><th className="p-6 text-center">권한</th><th className="p-6 text-right">상태</th></tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800 text-white">
+                            {allUsers.map(u => (
+                                <tr key={u.uid} className="hover:bg-slate-800/40">
+                                    <td className="p-6">{u.sn}</td>
+                                    <td className="p-6 font-black">{u.nickname}</td>
+                                    <td className="p-6 text-center text-xs">{u.role}</td>
+                                    <td className="p-6 text-right">
+                                        {!u.approved ? (
+                                            <button onClick={() => approveUser(u.uid)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-black">승인하기</button>
+                                        ) : (
+                                            <span className="text-blue-500 text-xs">활동 중</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    );
+}
