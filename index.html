@@ -682,6 +682,7 @@
             };
 
             const buyerSnRef = React.useRef(null);
+            const buyerNickRef = React.useRef(null);
 
             const submitForm = async (e) => {
                 e.preventDefault();
@@ -691,8 +692,14 @@
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', recId), newRec);
                 setForm(initialForm);
                 showToast("장부가 제출되었습니다.");
-                // 한글 입력 유지를 위해 첫 번째 입력 필드에 포커스
-                setTimeout(() => { if (buyerSnRef.current) buyerSnRef.current.focus(); }, 50);
+                // 한글 IME 유지: 구매자 고유번호로 포커스 후 닉네임으로 이동
+                setTimeout(() => {
+                    if (buyerSnRef.current) {
+                        buyerSnRef.current.focus();
+                        // 닉네임 필드가 한글 입력을 받아야 하므로 곧바로 포커스 이동
+                        setTimeout(() => { if (buyerNickRef.current) buyerNickRef.current.focus(); }, 30);
+                    }
+                }, 50);
             };
 
             const handleEditSave = async (e) => {
@@ -771,11 +778,11 @@
                                 <div className="grid grid-cols-2 gap-4 font-bold">
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
-                                        <input ref={buyerSnRef} className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
+                                        <input ref={buyerSnRef} inputMode="numeric" className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
                                     </div>
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 닉네임</label>
-                                        <input className="input-base font-bold text-lg" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" />
+                                        <input ref={buyerNickRef} lang="ko" className="input-base font-bold text-lg" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -1261,9 +1268,24 @@
                                                 {qSummary}
                                             </div>
                                         )}
-                                        <div className="flex gap-12 font-heavy pl-1">
-                                            <div><p className="text-[10px] text-slate-600 uppercase">매출액</p><p className="text-2xl">{formatKRW(r.totalAmount)}</p></div>
-                                            <div><p className="text-[10px] text-blue-500 uppercase">입금액</p><p className="text-2xl text-blue-400">{formatKRW(r.totalAmount * 0.5)}</p></div>
+                                        {/* 비고 */}
+                                        {r.note && (
+                                            <div className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 ml-1 flex items-start gap-2">
+                                                <Icon name="message-square" size={14} className="text-slate-500 flex-shrink-0 mt-0.5"/>
+                                                <p className="text-sm text-slate-300 font-bold leading-snug">{r.note}</p>
+                                            </div>
+                                        )}
+                                        <div className="flex gap-10 font-heavy pl-1">
+                                            <div>
+                                                <p className="text-[10px] text-slate-600 uppercase mb-1">매출액</p>
+                                                <p className="text-2xl font-heavy">{formatKRW(r.totalAmount)}</p>
+                                                <p className="text-[10px] text-slate-600 mt-0.5">({r.totalAmount.toLocaleString()}원)</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] text-blue-500 uppercase mb-1">입금액</p>
+                                                <p className="text-2xl text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</p>
+                                                <p className="text-[10px] text-blue-700 mt-0.5">({(r.totalAmount * 0.5).toLocaleString()}원)</p>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-3 min-w-[240px]">
