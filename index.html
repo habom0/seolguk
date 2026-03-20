@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷 </title>
+    <title>설국 인트라넷 - 경고 시스템 및 로그 확인 강화</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❄️</text></svg>" />
     <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -220,15 +220,20 @@
         const auth = getAuth(fbApp);
         const appId = "seolguk-intranet-v1";
 
-        const PRICES = { fullpack: 6400000000, painkiller: 3500000, honeyjelly: 80000000, honeystick: 80000000, parachute: 5000000, elixir: 4000000 };
-        const ITEM_INFO = {
-            fullpack: { label: '풀패키지', max: 1, emoji: '📦', desc: '1세트' },
-            painkiller: { label: '진통제', max: 200, emoji: '💊', desc: '시민 100 / 팩션 200' },
-            honeyjelly: { label: '꿀젤리', max: 30, emoji: '🧸', desc: '30개 한정' },
-            honeystick: { label: '꿀스틱', max: 30, emoji: '🍯', desc: '30개 한정' },
-            parachute: { label: '낙하산', max: 20, emoji: '🪂', desc: '20개 한정' },
-            elixir: { label: '파워 엘릭서', max: 200, emoji: '🏺', desc: '200개 한정' }
+        const DEFAULT_ITEMS = {
+            fullpack:  { label: '풀패키지',   max: 1,   emoji: '📦', price: 6400000000 },
+            painkiller:{ label: '진통제',     max: 200, emoji: '💊', price: 3500000    },
+            honeyjelly:{ label: '꿀젤리',     max: 30,  emoji: '🧸', price: 80000000   },
+            honeystick:{ label: '꿀스틱',     max: 30,  emoji: '🍯', price: 80000000   },
+            parachute: { label: '낙하산',     max: 20,  emoji: '🪂', price: 5000000    },
+            elixir:    { label: '파워 엘릭서', max: 200, emoji: '🏺', price: 4000000    },
         };
+        // 하위 호환 유지용 상수 (직접 참조하는 곳 제거 후 삭제 가능)
+        const PRICES    = Object.fromEntries(Object.entries(DEFAULT_ITEMS).map(([k,v])=>[k, v.price]));
+        const ITEM_INFO = Object.fromEntries(Object.entries(DEFAULT_ITEMS).map(([k,v])=>[k, { label:v.label, max:v.max, emoji:v.emoji, desc:'' }]));
+
+        // config.items 가 있으면 그걸 쓰고, 없으면 DEFAULT_ITEMS 사용
+        const getEffectiveItems = (config) => config?.items || DEFAULT_ITEMS;
         const ROLES = { EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자' };
         const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
@@ -602,15 +607,17 @@
 
         // --- Dashboard View ---
         function DashboardView({ user, records, config, showToast, weekRange, notifications, onOpenNotif }) {
-            const initialForm = { buyerSn: '', buyerNickname: '', note: '', fullpack: 0, painkiller: 0, honeyjelly: 0, honeystick: 0, parachute: 0, elixir: 0 };
+            const items = getEffectiveItems(config);
+            const itemKeys = Object.keys(items);
+            const initialForm = { buyerSn: '', buyerNickname: '', note: '', ...Object.fromEntries(itemKeys.map(k=>[k,0])) };
             const [form, setForm] = useState(initialForm);
             const [showPrices, setShowPrices] = useState(false);
             const [showManual, setShowManual] = useState(false);
             const [editing, setEditing] = useState(null);
             const [reason, setReason] = useState("");
 
-            const total = useMemo(() => Object.keys(PRICES).reduce((s, k) => s + (parseInt(form[k]) || 0) * PRICES[k], 0), [form]);
-            const isExceeded = useMemo(() => Object.keys(ITEM_INFO).some(k => (parseInt(form[k]) || 0) > ITEM_INFO[k].max), [form]);
+            const total = useMemo(() => itemKeys.reduce((s, k) => s + (parseInt(form[k]) || 0) * (items[k].price || 0), 0), [form, items]);
+            const isExceeded = useMemo(() => itemKeys.some(k => (parseInt(form[k]) || 0) > (items[k].max || 9999)), [form, items]);
 
             // 이번 주 내 판매 기록 전체
             const myWeekRecords = useMemo(() => {
@@ -625,12 +632,12 @@
             // 이번 주 품목별 합계
             const weekItemTotals = useMemo(() => {
                 const totals = {};
-                Object.keys(ITEM_INFO).forEach(k => { totals[k] = 0; });
+                itemKeys.forEach(k => { totals[k] = 0; });
                 myWeekRecords.forEach(r => {
-                    Object.keys(ITEM_INFO).forEach(k => { totals[k] += (parseInt(r[k]) || 0); });
+                    itemKeys.forEach(k => { totals[k] += (parseInt(r[k]) || 0); });
                 });
                 return totals;
-            }, [myWeekRecords]);
+            }, [myWeekRecords, itemKeys]);
 
             const weekTotalAmount = useMemo(() => myWeekRecords.reduce((s, r) => s + (r.totalAmount || 0), 0), [myWeekRecords]);
 
@@ -657,7 +664,7 @@
             const handleEditSave = async (e) => {
                 e.preventDefault();
                 if(!reason.trim()) return alert("수정 사유를 입력하세요.");
-                let nt = 0; Object.keys(ITEM_INFO).forEach(k => nt += (parseInt(editing[k])||0) * PRICES[k]);
+                let nt = 0; itemKeys.forEach(k => nt += (parseInt(editing[k])||0) * (items[k].price||0));
                 const updated = { ...editing, totalAmount: nt, note: `${editing.note || ""}\n[수정사유: ${reason}]`.trim(), isEdited: true, status: 'pending' };
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', editing.id), updated);
                 setEditing(null); setReason(""); alert("수정 완료! 재감사가 진행됩니다.");
@@ -738,10 +745,10 @@
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {Object.keys(ITEM_INFO).map(k => (
+                                    {itemKeys.map(k => (
                                         <div key={k}>
-                                            <label className="text-base text-slate-300 mb-2 flex items-center gap-1 font-heavy ml-1">{ITEM_INFO[k].emoji} {ITEM_INFO[k].label}</label>
-                                            <input type="number" className={`input-base font-heavy text-xl ${(parseInt(form[k]) > ITEM_INFO[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${ITEM_INFO[k].max}`} />
+                                            <label className="text-base text-slate-300 mb-2 flex items-center gap-1 font-heavy ml-1">{items[k].emoji} {items[k].label}</label>
+                                            <input type="number" className={`input-base font-heavy text-xl ${(parseInt(form[k]) > items[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${items[k].max}`} />
                                         </div>
                                     ))}
                                 </div>
@@ -792,18 +799,18 @@
 
                         {/* 품목별 판매 수량 */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                            {Object.keys(ITEM_INFO).map(k => {
+                            {itemKeys.map(k => {
                                 const qty = weekItemTotals[k] || 0;
-                                const itemRevenue = qty * PRICES[k];
+                                const itemRevenue = qty * (items[k].price || 0);
                                 return (
                                     <div key={k} className={`bg-slate-950 border rounded-2xl p-3 space-y-2 shadow-inner transition-all ${qty > 0 ? 'border-blue-800/50 bg-blue-950/20' : 'border-slate-800'}`}>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-lg">{ITEM_INFO[k].emoji}</span>
+                                            <span className="text-lg">{items[k].emoji}</span>
                                             <span className={`text-[11px] font-heavy px-2 py-0.5 rounded-lg ${qty > 0 ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-600'}`}>
                                                 {qty > 0 ? `${qty}개` : '—'}
                                             </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 font-heavy leading-tight">{ITEM_INFO[k].label}</p>
+                                        <p className="text-[11px] text-slate-400 font-heavy leading-tight">{items[k].label}</p>
                                         {qty > 0 && <p className="text-[10px] text-blue-300 font-bold">{formatKRW(itemRevenue)}</p>}
                                     </div>
                                 );
@@ -825,7 +832,7 @@
                             <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest font-heavy"><tr className="font-heavy"><th className="p-4 whitespace-nowrap">날짜</th><th className="p-4 whitespace-nowrap">구매자</th><th className="p-4 text-center whitespace-nowrap">품목</th><th className="p-4 text-center whitespace-nowrap">매출</th><th className="p-4 text-center whitespace-nowrap">상태</th><th className="p-4 text-center whitespace-nowrap">수정</th></tr></thead>
                             <tbody className="text-white font-bold">
                                 {myWeekRecords.map(r => {
-                                    const itemSummary = Object.keys(ITEM_INFO).filter(k => parseInt(r[k]) > 0).map(k => `${ITEM_INFO[k].emoji}${r[k]}`).join(' ');
+                                    const itemSummary = itemKeys.filter(k => parseInt(r[k]) > 0).map(k => `${items[k].emoji}${r[k]}`).join(' ');
                                     return (
                                     <tr key={r.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors font-heavy">
                                         <td className="p-4 text-xs font-mono text-slate-500 whitespace-nowrap">{formatDate(r.timestamp)}</td>
@@ -850,10 +857,10 @@
                     {showPrices && (
                         <Modal title="설국 가격표 및 가이드" onClose={()=>setShowPrices(false)}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                {Object.keys(ITEM_INFO).map(k => (
+                                {itemKeys.map(k => (
                                     <div key={k} className="bg-slate-950 p-5 rounded-3xl flex items-center gap-4 border border-slate-800">
-                                        <div className="text-4xl">{ITEM_INFO[k].emoji}</div>
-                                        <div className="flex-1 font-bold font-bold"><div className="flex justify-between font-heavy font-heavy"><span className="text-white text-lg font-bold">{ITEM_INFO[k].label}</span><span className="text-blue-400">{formatKRW(PRICES[k])}</span></div><p className="text-[10px] text-slate-500 uppercase font-bold">{ITEM_INFO[k].desc}</p></div>
+                                        <div className="text-4xl">{items[k].emoji}</div>
+                                        <div className="flex-1 font-bold"><div className="flex justify-between font-heavy"><span className="text-white text-lg font-bold">{items[k].label}</span><span className="text-blue-400">{formatKRW(items[k].price)}</span></div><p className="text-[10px] text-slate-500 uppercase font-bold">일일 최대 {items[k].max}개</p></div>
                                     </div>
                                 ))}
                             </div>
@@ -900,9 +907,9 @@
                         <Modal title="장부 수정" onClose={()=>setEditing(null)}>
                             <form onSubmit={handleEditSave} className="space-y-6 font-bold">
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 font-bold">
-                                    {Object.keys(ITEM_INFO).map(k => (
+                                    {itemKeys.map(k => (
                                         <div key={k} className="space-y-1">
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase">{ITEM_INFO[k].label}</label>
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase">{items[k].emoji} {items[k].label}</label>
                                             <input type="number" className="input-base font-heavy text-lg py-3" value={editing[k]||0} onChange={e=>setEditing({...editing, [k]: parseInt(e.target.value)||0})} />
                                         </div>
                                     ))}
@@ -1295,10 +1302,12 @@
 
                     {/* 판매현황 모달 */}
                     {userSalesModal && (() => {
+                        const auditItems = getEffectiveItems(config);
+                        const auditItemKeys = Object.keys(auditItems);
                         const userRecords = records.filter(r => r.sellerUid === userSalesModal.uid);
                         const totalAmt = userRecords.reduce((s, r) => s + (r.totalAmount||0), 0);
                         const itemTotals = {};
-                        Object.keys(ITEM_INFO).forEach(k => { itemTotals[k] = userRecords.reduce((s,r) => s + (parseInt(r[k])||0), 0); });
+                        auditItemKeys.forEach(k => { itemTotals[k] = userRecords.reduce((s,r) => s + (parseInt(r[k])||0), 0); });
                         return (
                         <Modal title={`${userSalesModal.nickname} 판매현황`} onClose={()=>setUserSalesModal(null)}>
                             <div className="space-y-5 font-heavy">
@@ -1317,13 +1326,13 @@
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {Object.keys(ITEM_INFO).map(k => (
+                                    {auditItemKeys.map(k => (
                                         <div key={k} className={`bg-slate-950 border rounded-xl p-3 ${itemTotals[k]>0 ? 'border-blue-800/40' : 'border-slate-800'}`}>
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-base">{ITEM_INFO[k].emoji}</span>
+                                                <span className="text-base">{auditItems[k].emoji}</span>
                                                 <span className={`text-[11px] font-heavy ${itemTotals[k]>0 ? 'text-blue-400' : 'text-slate-600'}`}>{itemTotals[k]}개</span>
                                             </div>
-                                            <p className="text-[10px] text-slate-500 font-bold">{ITEM_INFO[k].label}</p>
+                                            <p className="text-[10px] text-slate-500 font-bold">{auditItems[k].label}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -1478,10 +1487,38 @@
                 showToast("공지사항이 반영되었습니다.");
             };
 
+            const [itemDraft, setItemDraft] = useState(null); // 편집 중인 품목 초안
+            const [itemSaving, setItemSaving] = useState(false);
+
+            // 편집 초안 초기화 (config.items 변경 시 동기화)
+            useEffect(() => {
+                setItemDraft(JSON.parse(JSON.stringify(getEffectiveItems(config))));
+            }, [config.items]);
+
+            const saveItems = async () => {
+                if (!itemDraft) return;
+                setItemSaving(true);
+                const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+                await updateDoc(configDoc, { items: itemDraft });
+                setItemSaving(false);
+                showToast("품목 설정이 저장되었습니다.");
+            };
+
+            const resetItemsToDefault = async () => {
+                if (!window.confirm("품목 설정을 기본값으로 초기화하시겠습니까?")) return;
+                const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+                await updateDoc(configDoc, { items: DEFAULT_ITEMS });
+                showToast("품목 설정이 기본값으로 초기화되었습니다.");
+            };
+
             const saveWeekStartDay = async (day) => {
                 const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
                 await updateDoc(configDoc, { weekStartDay: day });
                 showToast("정산 기준 요일이 변경되었습니다.");
+            };
+
+            const updateItemField = (key, field, value) => {
+                setItemDraft(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
             };
 
             const updateUser = async (uid, data) => {
@@ -1555,7 +1592,85 @@
                         </div>
                     </section>
 
-                    {/* 사원 명단 관리 */}
+                    {/* 품목 설정 */}
+                    <section className="card shadow-2xl space-y-5">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl flex items-center gap-3 font-heavy"><Icon name="package" className="text-green-400"/> 품목 설정</h2>
+                            <button onClick={resetItemsToDefault} className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-2 font-bold transition-all">기본값 초기화</button>
+                        </div>
+                        <p className="text-xs text-slate-500 font-bold">품목명, 일일 최대 수량, 가격을 수정합니다. 저장 전에는 적용되지 않습니다.</p>
+
+                        {itemDraft && (
+                        <div className="space-y-3">
+                            {/* 헤더 */}
+                            <div className="grid grid-cols-12 gap-2 px-1">
+                                <div className="col-span-1 text-[10px] text-slate-600 uppercase font-heavy text-center">아이콘</div>
+                                <div className="col-span-4 text-[10px] text-slate-600 uppercase font-heavy">품목명</div>
+                                <div className="col-span-3 text-[10px] text-slate-600 uppercase font-heavy">일일 최대 수량</div>
+                                <div className="col-span-4 text-[10px] text-slate-600 uppercase font-heavy">단가 (원)</div>
+                            </div>
+
+                            {Object.keys(itemDraft).map(k => (
+                                <div key={k} className="grid grid-cols-12 gap-2 items-center bg-slate-950 border border-slate-800 rounded-2xl p-3 hover:border-slate-700 transition-all">
+                                    {/* 이모지 */}
+                                    <div className="col-span-1 text-center">
+                                        <input
+                                            type="text"
+                                            value={itemDraft[k].emoji}
+                                            onChange={e => updateItemField(k, 'emoji', e.target.value)}
+                                            className="w-10 h-10 text-center text-xl bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-blue-500"
+                                            maxLength={2}
+                                        />
+                                    </div>
+                                    {/* 품목명 */}
+                                    <div className="col-span-4">
+                                        <input
+                                            type="text"
+                                            value={itemDraft[k].label}
+                                            onChange={e => updateItemField(k, 'label', e.target.value)}
+                                            className="input-base py-2 text-sm font-heavy"
+                                            placeholder="품목명"
+                                        />
+                                    </div>
+                                    {/* 최대 수량 */}
+                                    <div className="col-span-3">
+                                        <input
+                                            type="number"
+                                            value={itemDraft[k].max}
+                                            onChange={e => updateItemField(k, 'max', parseInt(e.target.value)||1)}
+                                            className="input-base py-2 text-sm font-heavy text-center"
+                                            min="1"
+                                        />
+                                    </div>
+                                    {/* 단가 */}
+                                    <div className="col-span-4">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={itemDraft[k].price}
+                                                onChange={e => updateItemField(k, 'price', parseInt(e.target.value)||0)}
+                                                className="input-base py-2 text-sm font-heavy pr-8"
+                                                min="0"
+                                            />
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">₩</span>
+                                        </div>
+                                        <p className="text-[9px] text-blue-400 mt-1 pl-1 font-bold">{formatKRW(itemDraft[k].price)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        )}
+
+                        <div className="flex justify-end pt-2">
+                            <button
+                                onClick={saveItems}
+                                disabled={itemSaving}
+                                className="btn btn-green px-8 py-3 font-heavy shadow-lg flex items-center gap-2"
+                            >
+                                <Icon name={itemSaving ? 'loader' : 'save'} size={16}/> {itemSaving ? '저장 중...' : '품목 설정 저장'}
+                            </button>
+                        </div>
+                    </section>
                     <section className="space-y-6 font-heavy">
                         <div className="flex items-center justify-between px-2 font-heavy">
                             <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
