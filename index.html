@@ -966,6 +966,14 @@
                 const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
             }), [records, range]);
 
+            // ── 오늘 매출 ──
+            const todayTotal = useMemo(() => {
+                const now = new Date();
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const todayEnd   = new Date(todayStart); todayEnd.setDate(todayStart.getDate() + 1);
+                return allRecords.filter(r => { const d = new Date(r.timestamp); return d >= todayStart && d < todayEnd; }).reduce((s,r)=>s+(r.totalAmount||0), 0);
+            }, [allRecords]);
+
             // ── 이번 주 매출 ──
             const weekTotal = useMemo(() => filtered.reduce((s,r) => s+(r.totalAmount||0), 0), [filtered]);
 
@@ -975,9 +983,6 @@
                 const ms = new Date(now.getFullYear(), now.getMonth(), 1);
                 return allRecords.filter(r => new Date(r.timestamp) >= ms).reduce((s,r)=>s+(r.totalAmount||0), 0);
             }, [allRecords]);
-
-            // ── 전체 누적 ──
-            const grandTotal = useMemo(() => allRecords.reduce((s,r)=>s+(r.totalAmount||0), 0), [allRecords]);
 
             // ── 최근 30일 일별 집계 (하루 00시 마감) ──
             const chartData = useMemo(() => {
@@ -1032,9 +1037,9 @@
                             <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="book-open" className="text-green-400" size={17}/> 장부 통계</h3>
                             <div className="space-y-3">
                                 {[
+                                    { label:'오늘 매출',   value: formatKRW(todayTotal),  color:'text-green-400'  },
                                     { label:'이번 주 매출', value: formatKRW(weekTotal),  color:'text-white'      },
                                     { label:'이번 달 매출', value: formatKRW(monthTotal), color:'text-blue-400'   },
-                                    { label:'총 거래액',    value: formatKRW(grandTotal), color:'text-yellow-400' },
                                 ].map((item, i) => (
                                     <div key={i} className="flex justify-between items-center py-3 border-b border-slate-800 last:border-0">
                                         <span className="text-slate-400 font-bold text-sm">{item.label}</span>
@@ -1064,7 +1069,7 @@
                                 <div className="flex items-end gap-[2px] h-full">
                                     {chartData.map((d, i) => {
                                         const pct = maxEok > 0 ? (d.eok / maxEok) * 100 : 0;
-                                        const barColor = d.isToday ? '#3b82f6' : '#f59e0b';
+                                        const barColor = d.isToday ? '#3b82f6' : '#f97316';
                                         return (
                                             <div key={i} className="flex flex-col items-center flex-1 h-full justify-end group relative">
                                                 {/* hover 툴팁 */}
@@ -1080,7 +1085,7 @@
                                                     }}/>
                                                 {/* 억 단위 레이블 — 값 있는 날만 */}
                                                 <span className="text-[7px] font-heavy leading-none mt-0.5 truncate w-full text-center"
-                                                    style={{color: d.eok > 0 ? (d.isToday ? '#93c5fd' : '#fbbf24') : 'transparent'}}>
+                                                    style={{color: d.eok > 0 ? (d.isToday ? '#93c5fd' : '#fb923c') : 'transparent'}}>
                                                     {d.eok > 0 ? `${d.eok}` : ''}
                                                 </span>
                                                 {/* 날짜 레이블 — 5일마다 + 오늘 */}
@@ -1093,7 +1098,7 @@
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 text-[9px] text-slate-600 font-bold border-t border-slate-800 pt-2">
-                                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-yellow-500"/>과거</span>
+                                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{background:'#f97316'}}/>과거</span>
                                 <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-500"/>오늘</span>
                                 <span className="flex items-center gap-1"><span className="inline-block w-6 border-t border-dashed border-red-400"/>일평균</span>
                                 <span className="text-slate-700 ml-auto">막대 위 숫자 = 억원</span>
@@ -1196,7 +1201,7 @@
                     });
                 return {
                     punished: result.filter(u => u.warningSum > 0).sort((a,b) => b.warningSum - a.warningSum),
-                    clean: result.filter(u => u.warningSum === 0).sort((a,b) => a.sn.localeCompare(b.sn))
+                    clean: result.filter(u => u.warningSum === 0).sort((a,b) => a.nickname.localeCompare(b.nickname, 'ko'))
                 };
             }, [allUsers, records]);
 
@@ -2165,7 +2170,7 @@
                             const filtered = allUsers
                                 .filter(u => u.role !== ROLES.PENDING)
                                 .filter(u => memberFilter === 'all' || u.role === memberFilter)
-                                .sort((a,b) => a.sn.localeCompare(b.sn));
+                                .sort((a,b) => a.nickname.localeCompare(b.nickname, 'ko'));
                             return (
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2 bg-slate-900 lm-pill-wrap p-1 rounded-xl border border-slate-800 w-fit">
