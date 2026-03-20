@@ -253,13 +253,13 @@
         const formatDate = (isoString) => {
             if (!isoString) return "-";
             const d = new Date(isoString);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            return `${String(d.getFullYear()).slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         };
 
         const formatFullDateTime = (isoString) => {
             if (!isoString) return "-";
             const d = new Date(isoString);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            return `${String(d.getFullYear()).slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         };
 
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -966,39 +966,57 @@
                 const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
             }), [records, range]);
 
-            // 최근 30일 일별 매출 집계
-            const last30 = useMemo(() => {
-                const today = new Date(); today.setHours(23,59,59,999);
-                const since = new Date(today); since.setDate(today.getDate() - 29); since.setHours(0,0,0,0);
-                const days = {};
-                for (let i = 0; i < 30; i++) {
-                    const d = new Date(since); d.setDate(since.getDate() + i);
-                    const key = `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`;
-                    days[key] = { label: key, amount: 0, dow: ['일','월','화','수','목','금','토'][d.getDay()] };
-                }
-                allRecords.forEach(r => {
-                    const d = new Date(r.timestamp);
-                    if (d < since || d > today) return;
-                    const key = `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`;
-                    if (days[key]) days[key].amount += r.totalAmount || 0;
-                });
-                return Object.values(days);
+            // ── 이번 주 매출 ──
+            const weekTotal = useMemo(() => filtered.reduce((s,r) => s+(r.totalAmount||0), 0), [filtered]);
+
+            // ── 이번달 매출 ──
+            const monthTotal = useMemo(() => {
+                const now = new Date();
+                const ms = new Date(now.getFullYear(), now.getMonth(), 1);
+                return allRecords.filter(r => new Date(r.timestamp) >= ms).reduce((s,r)=>s+(r.totalAmount||0), 0);
             }, [allRecords]);
 
-            const maxAmount = Math.max(...last30.map(d => d.amount), 1);
-            const total30 = last30.reduce((s, d) => s + d.amount, 0);
-            const avg30 = total30 / last30.filter(d => d.amount > 0).length || 0;
-            const totalAll = allRecords.reduce((s, r) => s + (r.totalAmount || 0), 0);
+            // ── 전체 누적 ──
+            const grandTotal = useMemo(() => allRecords.reduce((s,r)=>s+(r.totalAmount||0), 0), [allRecords]);
 
-            // 이번달 합계
-            const now = new Date();
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            const totalMonth = allRecords.filter(r => new Date(r.timestamp) >= monthStart).reduce((s,r) => s+(r.totalAmount||0), 0);
+            // ── 최근 30일 일별 집계 (하루 00시 마감) ──
+            const chartData = useMemo(() => {
+                const today = new Date();
+                today.setHours(0,0,0,0); // 오늘 00시 기준 — 오늘치는 진행중
+                const days = [];
+                for (let i = 29; i >= 0; i--) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    const nextDay = new Date(d); nextDay.setDate(d.getDate() + 1);
+                    const isPast = i > 0; // 오늘 제외하고 완전히 마감된 날
+                    const amount = allRecords
+                        .filter(r => { const rd = new Date(r.timestamp); return rd >= d && rd < nextDay; })
+                        .reduce((s,r) => s+(r.totalAmount||0), 0);
+                    const yy = String(d.getFullYear()).slice(2);
+                    const mm = String(d.getMonth()+1).padStart(2,'0');
+                    const dd = String(d.getDate()).padStart(2,'0');
+                    days.push({
+                        label: `${mm}/${dd}`,
+                        fullLabel: `${yy}-${mm}-${dd}`,
+                        amount,
+                        eok: Math.floor(amount / 100000000), // 억 단위 (천만원 버림)
+                        isToday: i === 0,
+                        date: d,
+                    });
+                }
+                return days;
+            }, [allRecords]);
+
+            const maxEok = Math.max(...chartData.map(d => d.eok), 1);
+            const avg30Eok = (() => {
+                const hasDays = chartData.filter(d => d.eok > 0 && !d.isToday);
+                return hasDays.length > 0 ? hasDays.reduce((s,d)=>s+d.eok,0)/hasDays.length : 0;
+            })();
 
             return (
-                <div className="space-y-6 animate-fade-in font-bold">
+                <div className="space-y-5 font-bold">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={26}/> 전체 장부 현황</h2>
+                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={24}/> 전체 장부 현황</h2>
                         <div className="flex items-center gap-3 bg-slate-900 px-5 py-2.5 rounded-2xl border border-slate-800 shadow-xl font-heavy">
                             <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-left" size={22}/></button>
                             <span className="text-blue-400 whitespace-nowrap text-sm font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
@@ -1006,80 +1024,92 @@
                         </div>
                     </div>
 
-                    {/* 장부 통계 카드 */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {[
-                            { label:'총 거래 건수',     value:`${allRecords.length}건`,      color:'text-white',    sub: '전체 누적' },
-                            { label:'총 거래액',        value: formatKRW(totalAll),           color:'text-white',    sub: '전체 누적' },
-                            { label:'이번달 거래액',    value: formatKRW(totalMonth),         color:'text-blue-400', sub: `${now.getMonth()+1}월 합계` },
-                            { label:'최근 30일 거래액', value: formatKRW(total30),            color:'text-green-400',sub: '30일 합계' },
-                        ].map((s, i) => (
-                            <div key={i} className="card shadow-xl space-y-1">
-                                <p className="text-[10px] text-slate-500 uppercase font-bold">{s.label}</p>
-                                <p className={`text-lg font-heavy ${s.color}`}>{s.value}</p>
-                                <p className="text-[9px] text-slate-600 font-bold">{s.sub}</p>
-                            </div>
-                        ))}
-                    </div>
+                    {/* ── 2열 카드 ── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                    {/* 최근 30일 거래 추이 차트 */}
-                    <div className="card shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="bar-chart-2" className="text-green-400" size={18}/> 최근 30일 거래 추이</h3>
-                            <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
-                                <span>일평균 <span className="text-white font-heavy">{formatKRW(Math.round(avg30))}</span></span>
-                                <span>합계 <span className="text-green-400 font-heavy">{formatKRW(total30)}</span></span>
+                        {/* 장부 통계 */}
+                        <div className="card shadow-xl space-y-4">
+                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="book-open" className="text-green-400" size={17}/> 장부 통계</h3>
+                            <div className="space-y-3">
+                                {[
+                                    { label:'이번 주 매출', value: formatKRW(weekTotal),  color:'text-white'      },
+                                    { label:'이번 달 매출', value: formatKRW(monthTotal), color:'text-blue-400'   },
+                                    { label:'총 거래액',    value: formatKRW(grandTotal), color:'text-yellow-400' },
+                                ].map((item, i) => (
+                                    <div key={i} className="flex justify-between items-center py-3 border-b border-slate-800 last:border-0">
+                                        <span className="text-slate-400 font-bold text-sm">{item.label}</span>
+                                        <span className={`${item.color} font-heavy text-xl`}>{item.value}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        {/* 평균선 높이 계산 */}
-                        <div className="relative" style={{height:'180px'}}>
-                            {/* 평균선 */}
-                            <div className="absolute left-0 right-0 border-t border-dashed border-red-500/40 pointer-events-none"
-                                style={{top: `${100 - (avg30/maxAmount)*100}%`}}>
-                                <span className="absolute right-0 -top-4 text-[9px] text-red-400 font-bold">평균 {formatKRW(Math.round(avg30))}</span>
+
+                        {/* 최근 30일 거래 추이 */}
+                        <div className="card shadow-xl space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="bar-chart-2" className="text-blue-400" size={17}/> 최근 30일 거래 추이</h3>
+                                <span className="text-xs text-slate-500 font-bold">일평균 <span className="text-white font-heavy">{avg30Eok.toFixed(1)}억</span></span>
                             </div>
-                            {/* 막대 차트 */}
-                            <div className="flex items-end gap-px h-full overflow-x-auto pb-5" style={{scrollbarWidth:'none'}}>
-                                {last30.map((d, i) => {
-                                    const pct = maxAmount > 0 ? (d.amount / maxAmount) * 100 : 0;
-                                    const isToday = i === 29;
-                                    const isWeekend = d.dow === '토' || d.dow === '일';
-                                    return (
-                                        <div key={i} className="flex flex-col items-center flex-1 min-w-[18px] h-full justify-end group relative">
-                                            {/* 툴팁 */}
-                                            {d.amount > 0 && (
-                                                <div className="absolute bottom-full mb-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[9px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                                                    {d.label} ({d.dow})<br/>{formatKRW(d.amount)}
+
+                            {/* 차트 영역 */}
+                            <div className="relative" style={{height:'160px'}}>
+                                {/* 평균선 */}
+                                {avg30Eok > 0 && (
+                                    <div className="absolute left-0 right-0 pointer-events-none"
+                                        style={{top:`${(1 - avg30Eok/maxEok)*100}%`, borderTop:'1px dashed rgba(239,68,68,0.5)'}}>
+                                        <span className="absolute right-0 -top-3.5 text-[9px] text-red-400 font-bold bg-slate-900 px-1">avg</span>
+                                    </div>
+                                )}
+                                {/* 막대들 */}
+                                <div className="flex items-end gap-[2px] h-full">
+                                    {chartData.map((d, i) => {
+                                        const pct = maxEok > 0 ? (d.eok / maxEok) * 100 : 0;
+                                        const barColor = d.isToday ? '#3b82f6' : '#f59e0b';
+                                        return (
+                                            <div key={i} className="flex flex-col items-center flex-1 h-full justify-end group relative">
+                                                {/* hover 툴팁 */}
+                                                <div className="absolute bottom-full mb-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[9px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none text-center">
+                                                    {d.fullLabel}<br/>
+                                                    <span className="text-yellow-400">{d.eok > 0 ? `${d.eok}억` : '0'}</span>
                                                 </div>
-                                            )}
-                                            <div className="w-full rounded-t-sm transition-all"
-                                                style={{
-                                                    height: `${Math.max(pct, d.amount > 0 ? 2 : 0)}%`,
-                                                    background: isToday ? '#3b82f6' : isWeekend ? '#6366f1' : '#f59e0b',
-                                                    opacity: d.amount === 0 ? 0.15 : 1
-                                                }}/>
-                                            <span className="text-[7px] text-slate-600 mt-1 font-bold leading-none">{i % 5 === 0 || isToday ? d.label : ''}</span>
-                                        </div>
-                                    );
-                                })}
+                                                {/* 막대 */}
+                                                <div className="w-full rounded-t-[2px]"
+                                                    style={{
+                                                        height: d.eok > 0 ? `${Math.max(pct, 3)}%` : '2px',
+                                                        background: d.eok > 0 ? barColor : 'rgba(255,255,255,0.05)',
+                                                    }}/>
+                                                {/* 억 단위 레이블 — 값 있는 날만 */}
+                                                <span className="text-[7px] font-heavy leading-none mt-0.5 truncate w-full text-center"
+                                                    style={{color: d.eok > 0 ? (d.isToday ? '#93c5fd' : '#fbbf24') : 'transparent'}}>
+                                                    {d.eok > 0 ? `${d.eok}` : ''}
+                                                </span>
+                                                {/* 날짜 레이블 — 5일마다 + 오늘 */}
+                                                <span className="text-[7px] text-slate-600 leading-none mt-0.5 truncate w-full text-center font-bold">
+                                                    {(i % 5 === 0 || d.isToday) ? d.label : ''}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 text-[9px] text-slate-600 font-bold border-t border-slate-800 pt-2">
+                                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-yellow-500"/>과거</span>
+                                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-500"/>오늘</span>
+                                <span className="flex items-center gap-1"><span className="inline-block w-6 border-t border-dashed border-red-400"/>일평균</span>
+                                <span className="text-slate-700 ml-auto">막대 위 숫자 = 억원</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4 text-[9px] text-slate-600 font-bold pt-1 border-t border-slate-800">
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-yellow-500 inline-block"/>평일</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-indigo-500 inline-block"/>주말</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500 inline-block"/>오늘</span>
-                            <span className="flex items-center gap-1"><span className="w-8 border-t border-dashed border-red-400 inline-block"/>일평균</span>
-                        </div>
+
                     </div>
 
-                    {/* 주간 장부 테이블 */}
-                    <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
-                        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                            <span className="text-sm font-heavy text-slate-400">이번 주 {filtered.length}건 · 매출 {formatKRW(filtered.reduce((s,r)=>s+r.totalAmount,0))}</span>
+                    {/* ── 주간 장부 테이블 ── */}
+                    <div className="card p-0 overflow-hidden shadow-2xl">
+                        <div className="px-5 py-3 border-b border-slate-800">
+                            <span className="text-sm font-heavy text-slate-400">{filtered.length}건 · 매출 {formatKRW(filtered.reduce((s,r)=>s+(r.totalAmount||0),0))}</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[10px] uppercase tracking-widest font-heavy">
+                                <thead className="bg-slate-800 text-slate-400 text-[10px] uppercase tracking-wider">
                                     <tr className="border-b border-slate-700">
                                         <th className="p-4 whitespace-nowrap">날짜</th>
                                         <th className="p-4 whitespace-nowrap">판매 사원</th>
@@ -1092,7 +1122,7 @@
                                 <tbody className="divide-y divide-slate-800 text-white font-heavy">
                                     {filtered.map(r => (
                                         <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
-                                            <td className="p-4 text-xs text-slate-600 font-mono whitespace-nowrap">{formatDate(r.timestamp)}</td>
+                                            <td className="p-4 text-xs text-slate-500 font-mono whitespace-nowrap">{formatDate(r.timestamp)}</td>
                                             <td className="p-4 whitespace-nowrap"><div className="text-sm">{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
                                             <td className="p-4 whitespace-nowrap"><div className="text-sm">{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
                                             <td className="p-4 text-right font-heavy text-sm whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
@@ -1101,7 +1131,7 @@
                                         </tr>
                                     ))}
                                     {filtered.length === 0 && (
-                                        <tr><td colSpan="6" className="p-10 text-center text-slate-600 font-bold">이번 주 장부 기록이 없습니다.</td></tr>
+                                        <tr><td colSpan="6" className="p-10 text-center text-slate-600 font-bold">기록이 없습니다.</td></tr>
                                     )}
                                 </tbody>
                             </table>
