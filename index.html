@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설국 인트라넷 - 경고 시스템 및 로그 확인 강화</title>
+    <title>설국 인트라넷</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❄️</text></svg>" />
     <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -523,7 +523,10 @@
                             <div className="mt-2 bg-slate-950/60 rounded-xl p-3 border border-slate-800">
                                 <div className="text-sm font-heavy truncate text-white">{user.nickname}</div>
                                 <div className="text-[10px] text-blue-400 font-bold mt-0.5">{user.role} · {user.sn}</div>
-                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_user_session');}} className="mt-2 w-full py-1.5 bg-slate-800 hover:bg-red-900/30 text-red-400 rounded-lg text-xs transition-all font-bold">로그아웃</button>
+                                <button onClick={()=>setActiveTab('mypage')} className={`mt-2 w-full py-1.5 rounded-lg text-xs transition-all font-bold flex items-center justify-center gap-1.5 ${activeTab==='mypage' ? 'bg-blue-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}>
+                                    <Icon name="user-cog" size={13}/> 내 설정
+                                </button>
+                                <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_user_session');}} className="mt-1.5 w-full py-1.5 bg-slate-800 hover:bg-red-900/30 text-red-400 rounded-lg text-xs transition-all font-bold">로그아웃</button>
                             </div>
                         </div>
                     </nav>
@@ -535,6 +538,7 @@
                         {activeTab === 'ranking' && <RankingView records={records} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
+                        {activeTab === 'mypage' && <MyPageView user={user} setUser={setUser} showToast={showToast} />}
                     </main>
 
                     {/* ── 모바일 하단 탭바 ── */}
@@ -544,8 +548,9 @@
                                 { tab:'dashboard', icon:'layout-dashboard', label:'대시보드' },
                                 { tab:'ledger',    icon:'clipboard-list',  label:'장부'     },
                                 { tab:'ranking',   icon:'trophy',           label:'랭킹'     },
-                                ...(user.role !== ROLES.EMPLOYEE ? [{ tab:'audit', icon:'shield-check', label:'감사', color:'indigo' }] : []),
+                                ...(user.role !== ROLES.EMPLOYEE ? [{ tab:'audit', icon:'shield-check', label:'감사' }] : []),
                                 ...(user.role === ROLES.ADMIN    ? [{ tab:'admin', icon:'settings',     label:'설정'  }] : []),
+                                { tab:'mypage', icon:'user-cog', label:'내 설정' },
                             ].map(item => (
                                 <button key={item.tab} onClick={()=>setActiveTab(item.tab)} className={`mob-btn ${activeTab===item.tab ? 'active' : ''}`}>
                                     <Icon name={item.icon} size={22}/>
@@ -1014,7 +1019,7 @@
             }, [records, historyRange, historyFilter]);
 
             const warningSortedUsers = useMemo(() => {
-                const result = allUsers.filter(u => u.approved).map(u => {
+                const result = allUsers.filter(u => u.uid && u.nickname).map(u => {
                     const score = records.filter(r => r.sellerUid === u.uid).reduce((s, r) => s + (parseInt(r.penaltyPoints) || 0), 0);
                     return { ...u, warningSum: score };
                 });
@@ -1471,6 +1476,120 @@
                 </div>
             );
         }
+        // --- My Page View ---
+        function MyPageView({ user, setUser, showToast }) {
+            const [nickname, setNickname] = useState(user.nickname || "");
+            const [currentPw, setCurrentPw] = useState("");
+            const [newPw, setNewPw]         = useState("");
+            const [confirmPw, setConfirmPw] = useState("");
+            const [saving, setSaving]       = useState(false);
+
+            const saveNickname = async () => {
+                if (!nickname.trim()) return alert("닉네임을 입력해 주세요.");
+                if (nickname.trim() === user.nickname) return showToast("변경사항이 없습니다.");
+                setSaving(true);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), { nickname: nickname.trim() });
+                const updated = { ...user, nickname: nickname.trim() };
+                setUser(updated);
+                localStorage.setItem('seolguk_user_session', JSON.stringify(updated));
+                setSaving(false);
+                showToast("닉네임이 변경되었습니다.");
+            };
+
+            const savePassword = async () => {
+                if (!currentPw) return alert("현재 비밀번호를 입력해 주세요.");
+                if (currentPw !== user.password) return alert("현재 비밀번호가 일치하지 않습니다.");
+                if (!newPw) return alert("새 비밀번호를 입력해 주세요.");
+                if (newPw.length > 4) return alert("비밀번호는 4자리 숫자입니다.");
+                if (newPw !== confirmPw) return alert("새 비밀번호와 확인이 일치하지 않습니다.");
+                setSaving(true);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), { password: newPw });
+                const updated = { ...user, password: newPw };
+                setUser(updated);
+                localStorage.setItem('seolguk_user_session', JSON.stringify(updated));
+                setCurrentPw(""); setNewPw(""); setConfirmPw("");
+                setSaving(false);
+                showToast("비밀번호가 변경되었습니다.");
+            };
+
+            return (
+                <div className="space-y-6 max-w-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-blue-600/15 p-3 rounded-2xl"><Icon name="user-cog" className="text-blue-400" size={28}/></div>
+                        <div>
+                            <h1 className="text-2xl font-heavy">내 설정</h1>
+                            <p className="text-sm text-slate-500 font-bold">{user.role} · #{user.sn}</p>
+                        </div>
+                    </div>
+
+                    {/* 닉네임 변경 */}
+                    <div className="card shadow-xl space-y-4">
+                        <h2 className="text-lg font-heavy flex items-center gap-2"><Icon name="pencil" className="text-blue-400" size={18}/> 닉네임 변경</h2>
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 uppercase font-heavy">현재 닉네임</label>
+                            <div className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-400 font-bold text-sm">{user.nickname}</div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 uppercase font-heavy">새 닉네임</label>
+                            <input
+                                className="input-base font-bold"
+                                value={nickname}
+                                onChange={e => setNickname(e.target.value)}
+                                placeholder="변경할 닉네임 입력"
+                                maxLength={20}
+                            />
+                        </div>
+                        <button onClick={saveNickname} disabled={saving} className="btn btn-blue w-full py-3 font-heavy">
+                            <Icon name="check" size={16}/> 닉네임 저장
+                        </button>
+                    </div>
+
+                    {/* 비밀번호 변경 */}
+                    <div className="card shadow-xl space-y-4">
+                        <h2 className="text-lg font-heavy flex items-center gap-2"><Icon name="lock" className="text-indigo-400" size={18}/> 비밀번호 변경</h2>
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 uppercase font-heavy">현재 비밀번호</label>
+                            <input
+                                type="password"
+                                maxLength={4}
+                                className="input-base font-heavy text-center text-2xl tracking-[0.5em]"
+                                value={currentPw}
+                                onChange={e => setCurrentPw(e.target.value)}
+                                placeholder="••••"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 uppercase font-heavy">새 비밀번호 (숫자 4자리)</label>
+                            <input
+                                type="password"
+                                maxLength={4}
+                                className="input-base font-heavy text-center text-2xl tracking-[0.5em]"
+                                value={newPw}
+                                onChange={e => setNewPw(e.target.value)}
+                                placeholder="••••"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 uppercase font-heavy">새 비밀번호 확인</label>
+                            <input
+                                type="password"
+                                maxLength={4}
+                                className={`input-base font-heavy text-center text-2xl tracking-[0.5em] ${confirmPw && newPw !== confirmPw ? 'border-red-500 ring-2 ring-red-500/20' : confirmPw && newPw === confirmPw ? 'border-green-500 ring-2 ring-green-500/20' : ''}`}
+                                value={confirmPw}
+                                onChange={e => setConfirmPw(e.target.value)}
+                                placeholder="••••"
+                            />
+                            {confirmPw && newPw !== confirmPw && <p className="text-xs text-red-400 font-bold pl-1">비밀번호가 일치하지 않습니다.</p>}
+                            {confirmPw && newPw === confirmPw && <p className="text-xs text-green-400 font-bold pl-1">비밀번호가 일치합니다.</p>}
+                        </div>
+                        <button onClick={savePassword} disabled={saving || (confirmPw && newPw !== confirmPw)} className="btn btn-indigo w-full py-3 font-heavy disabled:opacity-50">
+                            <Icon name="lock" size={16}/> 비밀번호 변경
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         function RankingView({ records }) {
             const data = useMemo(() => {
                 const s = {};
