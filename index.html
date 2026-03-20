@@ -558,8 +558,8 @@
                     {/* ── 메인 콘텐츠 ── */}
                     <main className="main-area lm-content">
                         {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} />}
-                        {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
-                        {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} />}
+                        {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allRecords={records} />}
+                        {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} config={config} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
                         {activeTab === 'mypage' && <MyPageView user={user} setUser={setUser} showToast={showToast} />}
@@ -961,38 +961,148 @@
         }
 
         // --- Ledger View ---
-        function LedgerView({ records, range, offset, setOffset }) {
+        function LedgerView({ records, range, offset, setOffset, allRecords }) {
             const filtered = useMemo(() => records.filter(r => {
                 const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
             }), [records, range]);
 
+            // 최근 30일 일별 매출 집계
+            const last30 = useMemo(() => {
+                const today = new Date(); today.setHours(23,59,59,999);
+                const since = new Date(today); since.setDate(today.getDate() - 29); since.setHours(0,0,0,0);
+                const days = {};
+                for (let i = 0; i < 30; i++) {
+                    const d = new Date(since); d.setDate(since.getDate() + i);
+                    const key = `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`;
+                    days[key] = { label: key, amount: 0, dow: ['일','월','화','수','목','금','토'][d.getDay()] };
+                }
+                allRecords.forEach(r => {
+                    const d = new Date(r.timestamp);
+                    if (d < since || d > today) return;
+                    const key = `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`;
+                    if (days[key]) days[key].amount += r.totalAmount || 0;
+                });
+                return Object.values(days);
+            }, [allRecords]);
+
+            const maxAmount = Math.max(...last30.map(d => d.amount), 1);
+            const total30 = last30.reduce((s, d) => s + d.amount, 0);
+            const avg30 = total30 / last30.filter(d => d.amount > 0).length || 0;
+            const totalAll = allRecords.reduce((s, r) => s + (r.totalAmount || 0), 0);
+
+            // 이번달 합계
+            const now = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const totalMonth = allRecords.filter(r => new Date(r.timestamp) >= monthStart).reduce((s,r) => s+(r.totalAmount||0), 0);
+
             return (
-                <div className="space-y-8 animate-fade-in font-bold">
+                <div className="space-y-6 animate-fade-in font-bold">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <h2 className="text-3xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={28}/> 전체 장부 현황</h2>
-                        <div className="flex items-center gap-4 bg-slate-900 px-6 py-3 rounded-2xl border border-slate-800 shadow-xl font-heavy">
-                            <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all font-heavy"><Icon name="chevron-left" size={24}/></button>
-                            <span className="text-blue-400 whitespace-nowrap font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
-                            <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all font-heavy"><Icon name="chevron-right" size={24}/></button>
+                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={26}/> 전체 장부 현황</h2>
+                        <div className="flex items-center gap-3 bg-slate-900 px-5 py-2.5 rounded-2xl border border-slate-800 shadow-xl font-heavy">
+                            <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-left" size={22}/></button>
+                            <span className="text-blue-400 whitespace-nowrap text-sm font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
+                            <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-right" size={22}/></button>
                         </div>
                     </div>
+
+                    {/* 장부 통계 카드 */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {[
+                            { label:'총 거래 건수',     value:`${allRecords.length}건`,      color:'text-white',    sub: '전체 누적' },
+                            { label:'총 거래액',        value: formatKRW(totalAll),           color:'text-white',    sub: '전체 누적' },
+                            { label:'이번달 거래액',    value: formatKRW(totalMonth),         color:'text-blue-400', sub: `${now.getMonth()+1}월 합계` },
+                            { label:'최근 30일 거래액', value: formatKRW(total30),            color:'text-green-400',sub: '30일 합계' },
+                        ].map((s, i) => (
+                            <div key={i} className="card shadow-xl space-y-1">
+                                <p className="text-[10px] text-slate-500 uppercase font-bold">{s.label}</p>
+                                <p className={`text-lg font-heavy ${s.color}`}>{s.value}</p>
+                                <p className="text-[9px] text-slate-600 font-bold">{s.sub}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* 최근 30일 거래 추이 차트 */}
+                    <div className="card shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="bar-chart-2" className="text-green-400" size={18}/> 최근 30일 거래 추이</h3>
+                            <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+                                <span>일평균 <span className="text-white font-heavy">{formatKRW(Math.round(avg30))}</span></span>
+                                <span>합계 <span className="text-green-400 font-heavy">{formatKRW(total30)}</span></span>
+                            </div>
+                        </div>
+                        {/* 평균선 높이 계산 */}
+                        <div className="relative" style={{height:'180px'}}>
+                            {/* 평균선 */}
+                            <div className="absolute left-0 right-0 border-t border-dashed border-red-500/40 pointer-events-none"
+                                style={{top: `${100 - (avg30/maxAmount)*100}%`}}>
+                                <span className="absolute right-0 -top-4 text-[9px] text-red-400 font-bold">평균 {formatKRW(Math.round(avg30))}</span>
+                            </div>
+                            {/* 막대 차트 */}
+                            <div className="flex items-end gap-px h-full overflow-x-auto pb-5" style={{scrollbarWidth:'none'}}>
+                                {last30.map((d, i) => {
+                                    const pct = maxAmount > 0 ? (d.amount / maxAmount) * 100 : 0;
+                                    const isToday = i === 29;
+                                    const isWeekend = d.dow === '토' || d.dow === '일';
+                                    return (
+                                        <div key={i} className="flex flex-col items-center flex-1 min-w-[18px] h-full justify-end group relative">
+                                            {/* 툴팁 */}
+                                            {d.amount > 0 && (
+                                                <div className="absolute bottom-full mb-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[9px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                                    {d.label} ({d.dow})<br/>{formatKRW(d.amount)}
+                                                </div>
+                                            )}
+                                            <div className="w-full rounded-t-sm transition-all"
+                                                style={{
+                                                    height: `${Math.max(pct, d.amount > 0 ? 2 : 0)}%`,
+                                                    background: isToday ? '#3b82f6' : isWeekend ? '#6366f1' : '#f59e0b',
+                                                    opacity: d.amount === 0 ? 0.15 : 1
+                                                }}/>
+                                            <span className="text-[7px] text-slate-600 mt-1 font-bold leading-none">{i % 5 === 0 || isToday ? d.label : ''}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-[9px] text-slate-600 font-bold pt-1 border-t border-slate-800">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-yellow-500 inline-block"/>평일</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-indigo-500 inline-block"/>주말</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500 inline-block"/>오늘</span>
+                            <span className="flex items-center gap-1"><span className="w-8 border-t border-dashed border-red-400 inline-block"/>일평균</span>
+                        </div>
+                    </div>
+
+                    {/* 주간 장부 테이블 */}
                     <div className="card p-0 overflow-hidden font-heavy shadow-2xl">
+                        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                            <span className="text-sm font-heavy text-slate-400">이번 주 {filtered.length}건 · 매출 {formatKRW(filtered.reduce((s,r)=>s+r.totalAmount,0))}</span>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800 text-slate-400 text-[10px] uppercase tracking-widest font-heavy"><tr className="border-b border-slate-700 font-heavy"><th className="p-6 whitespace-nowrap">날짜</th><th className="p-6 whitespace-nowrap">판매 사원</th><th className="p-6 whitespace-nowrap">구매자</th><th className="p-6 text-right font-heavy whitespace-nowrap">매출액</th><th className="p-6 text-right font-heavy whitespace-nowrap">입금액</th><th className="p-6 text-center font-heavy whitespace-nowrap">상태</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
+                                <thead className="bg-slate-800 text-slate-400 text-[10px] uppercase tracking-widest font-heavy">
+                                    <tr className="border-b border-slate-700">
+                                        <th className="p-4 whitespace-nowrap">날짜</th>
+                                        <th className="p-4 whitespace-nowrap">판매 사원</th>
+                                        <th className="p-4 whitespace-nowrap">구매자</th>
+                                        <th className="p-4 text-right whitespace-nowrap">매출액</th>
+                                        <th className="p-4 text-right whitespace-nowrap">입금액</th>
+                                        <th className="p-4 text-center whitespace-nowrap">상태</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800 text-white font-heavy">
                                     {filtered.map(r => (
-                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors font-heavy">
-                                            <td className="p-6 text-xs text-slate-600 font-mono whitespace-nowrap">{formatDate(r.timestamp)}</td>
-                                            <td className="p-6 font-heavy whitespace-nowrap"><div>{r.sellerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.sellerSn})</div></td>
-                                            <td className="p-6 font-heavy whitespace-nowrap"><div>{r.buyerNickname}</div><div className="text-[10px] text-slate-600 font-bold">({r.buyerSn})</div></td>
-                                            <td className="p-6 text-right font-heavy text-lg whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
-                                            <td className="p-6 text-right text-blue-400 font-heavy text-lg whitespace-nowrap">{formatKRW(r.totalAmount * 0.5)}</td>
-                                            <td className="p-6 text-center font-heavy font-heavy whitespace-nowrap">
-                                                <StatusBadge record={r} />
-                                            </td>
+                                        <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
+                                            <td className="p-4 text-xs text-slate-600 font-mono whitespace-nowrap">{formatDate(r.timestamp)}</td>
+                                            <td className="p-4 whitespace-nowrap"><div className="text-sm">{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
+                                            <td className="p-4 whitespace-nowrap"><div className="text-sm">{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
+                                            <td className="p-4 text-right font-heavy text-sm whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
+                                            <td className="p-4 text-right text-blue-400 font-heavy text-sm whitespace-nowrap">{formatKRW(r.totalAmount * 0.5)}</td>
+                                            <td className="p-4 text-center whitespace-nowrap"><StatusBadge record={r} /></td>
                                         </tr>
                                     ))}
+                                    {filtered.length === 0 && (
+                                        <tr><td colSpan="6" className="p-10 text-center text-slate-600 font-bold">이번 주 장부 기록이 없습니다.</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -1061,10 +1171,19 @@
             }, [allUsers, records]);
 
             const auditorRanking = useMemo(() => {
+                // 감사 처리 건수 집계 (auditorName 기준)
                 const counts = {};
                 records.forEach(r => { if (r.auditorName) counts[r.auditorName] = (counts[r.auditorName] || 0) + 1; });
-                return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-            }, [records]);
+                // 감사 권한자(AUDIT+ADMIN) 전원 포함 — 0건도 표시
+                const auditUsers = allUsers.filter(u => u.role === ROLES.AUDIT || u.role === ROLES.ADMIN);
+                const result = auditUsers.map(u => ({
+                    name: u.nickname,
+                    sn: u.sn,
+                    role: u.role,
+                    count: counts[u.nickname] || 0
+                }));
+                return result.sort((a, b) => b.count - a.count);
+            }, [records, allUsers]);
 
             return (
                 <div className="space-y-8 animate-fade-in font-bold">
@@ -1237,20 +1356,35 @@
 
                     {tab === 'team' && (
                         <div className="card shadow-2xl font-heavy">
-                            <h2 className="text-xl text-indigo-400 font-heavy mb-8 flex items-center gap-2 font-heavy"><Icon name="shield-check"/> 감사팀 업무 실적 순위</h2>
-                            <div className="space-y-4">
+                            <h2 className="text-xl text-indigo-400 font-heavy mb-6 flex items-center gap-2"><Icon name="shield-check" size={20}/> 감사팀 업무 실적 순위</h2>
+                            <div className="space-y-3">
                                 {auditorRanking.map((auditor, idx) => (
-                                    <div key={idx} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex justify-between items-center group shadow-md transition-all hover:bg-slate-900">
-                                        <div className="flex items-center gap-5">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-heavy text-xl ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'bg-slate-800 text-slate-500'}`}>{idx+1}</div>
-                                            <span className="text-2xl font-heavy text-white">{auditor.name}</span>
+                                    <div key={idx} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex justify-between items-center hover:bg-slate-900 transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-heavy text-lg flex-shrink-0
+                                                ${idx === 0 && auditor.count > 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20'
+                                                : 'bg-slate-800 text-slate-500'}`}>{idx+1}</div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg font-heavy text-white">{auditor.name}</span>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-heavy
+                                                        ${auditor.role === ROLES.ADMIN ? 'bg-amber-500/20 text-amber-400'
+                                                        : 'bg-indigo-500/20 text-indigo-400'}`}>
+                                                        {auditor.role}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-600 font-bold">#{auditor.sn}</span>
+                                            </div>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-[10px] text-slate-600 uppercase block tracking-widest font-heavy">Audits Processed</span>
-                                            <span className="text-3xl text-indigo-400 font-black">{auditor.count}건</span>
+                                            <span className="text-[10px] text-slate-600 uppercase block tracking-widest font-heavy">처리건수</span>
+                                            <span className={`text-2xl font-black ${auditor.count > 0 ? 'text-indigo-400' : 'text-slate-700'}`}>{auditor.count}건</span>
                                         </div>
                                     </div>
                                 ))}
+                                {auditorRanking.length === 0 && (
+                                    <p className="text-center text-slate-600 py-8 font-bold">감사 권한 보유 사원이 없습니다.</p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1621,88 +1755,154 @@
             );
         }
 
-        function RankingView({ records, allUsers }) {
+        function RankingView({ records, allUsers, config }) {
+            const [weekOffset, setWeekOffset] = useState(0);
+
+            // 주간 범위 계산 (config.weekStartDay 기준)
+            const weekRange = useMemo(() => {
+                const now = new Date();
+                now.setDate(now.getDate() + (weekOffset * 7));
+                const day = now.getDay();
+                const startDay = config?.weekStartDay ?? 1;
+                const diff = (day < startDay) ? (day + 7 - startDay) : (day - startDay);
+                const start = new Date(now);
+                start.setDate(now.getDate() - diff); start.setHours(0,0,0,0);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
+                return { start, end };
+            }, [weekOffset, config]);
+
+            const isCurrentWeek = weekOffset === 0;
+            const weekLabel = isCurrentWeek ? '이번 주' : weekOffset === -1 ? '지난 주' : `${Math.abs(weekOffset)}주 전`;
+
+            // 집계: 이벤트용·가입신청 제외, 나머지 모든 권한(사원·감사팀·관리자) 포함
             const data = useMemo(() => {
+                const excludeUids = new Set(
+                    allUsers.filter(u => u.role === ROLES.EVENT || u.role === ROLES.PENDING).map(u => u.uid)
+                );
                 const s = {};
-                // 관리자·이벤트용 uid 목록
-                const excludeUids = new Set(allUsers.filter(u => u.role === ROLES.ADMIN || u.role === ROLES.EVENT).map(u => u.uid));
-                records.filter(r =>
-                    !excludeUids.has(r.sellerUid) &&
-                    ((r.status === 'pending' && !r.auditReason) || r.status === 'completed')
-                ).forEach(r => {
-                    if (!s[r.sellerUid]) s[r.sellerUid] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0, deposit: 0 };
-                    s[r.sellerUid].count++; s[r.sellerUid].total += r.totalAmount; s[r.sellerUid].deposit += r.totalAmount * 0.5;
-                });
+                records
+                    .filter(r => {
+                        if (excludeUids.has(r.sellerUid)) return false;
+                        if (r.status === 'pending' && r.auditReason) return false; // 보류건 제외
+                        const d = new Date(r.timestamp);
+                        return d >= weekRange.start && d <= weekRange.end;
+                    })
+                    .forEach(r => {
+                        const key = r.sellerUid;
+                        if (!s[key]) s[key] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0, deposit: 0 };
+                        s[key].count++;
+                        s[key].total += r.totalAmount || 0;
+                        s[key].deposit += (r.totalAmount || 0) * 0.5;
+                    });
                 return Object.values(s).sort((a, b) => b.count - a.count);
-            }, [records, allUsers]);
+            }, [records, allUsers, weekRange]);
+
+            const podium = [data[1], data[0], data[2]]; // 2위, 1위, 3위 순서로 시상대
 
             return (
-                <div className="space-y-8 animate-fade-in font-bold">
-                    <div className="text-center space-y-2 py-4">
-                        <div className="inline-block bg-yellow-500/10 p-4 rounded-2xl mb-2 animate-pulse font-heavy"><Icon name="award" size={48} className="text-yellow-500"/></div>
-                        <h2 className="text-4xl text-white font-heavy uppercase tracking-tighter italic font-heavy">설국 판매 명예의 전당</h2>
-                        <p className="text-slate-500 tracking-widest uppercase text-[10px] font-heavy font-heavy">Real-time Performance Leaderboard</p>
-                    </div>
-
-                    <div className="flex flex-wrap justify-center items-end gap-4 md:gap-8 pb-4 font-heavy">
-                        {[1, 0, 2].map((idx) => {
-                            const item = data[idx]; if (!item) return null;
-                            const configs = [
-                                { color: 'border-yellow-500', bg: 'bg-yellow-500/5', shadow: 'shadow-yellow-900/10', h: 'h-56', rank: '1위', icon: '👑' },
-                                { color: 'border-slate-400', bg: 'bg-slate-400/5', shadow: 'shadow-slate-900/10', h: 'h-48', rank: '2위', icon: '🥈' },
-                                { color: 'border-amber-700', bg: 'bg-amber-700/5', shadow: 'shadow-amber-900/10', h: 'h-44', rank: '3위', icon: '🥉' }
-                            ];
-                            const cfg = configs[idx];
-                            return (
-                                <div key={idx} className={`w-full max-w-[200px] ${cfg.h} ${cfg.bg} border-t-4 ${cfg.color} rounded-t-3xl flex flex-col items-center justify-center relative shadow-xl transition-all hover:-translate-y-1 hover:brightness-125 font-heavy font-heavy`}>
-                                    <div className="absolute -top-6 text-4xl">{cfg.icon}</div>
-                                    <span className={`text-3xl mb-1 italic font-black ${idx === 0 ? 'text-yellow-500' : 'text-slate-400'}`}>{cfg.rank}</span>
-                                    <span className="text-xl text-white font-heavy truncate w-full text-center px-2">{item.name}</span>
-                                    <span className="text-[10px] opacity-40 font-mono font-heavy">#{item.sn}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <div className="card p-0 overflow-hidden font-heavy shadow-2xl border-slate-800 font-heavy font-heavy font-heavy">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left font-heavy">
-                                <thead className="bg-slate-800/50 text-slate-500 text-[10px] uppercase tracking-widest font-heavy">
-                                    <tr className="border-b border-slate-800">
-                                        <th className="px-6 py-4 whitespace-nowrap">순위</th>
-                                        <th className="px-6 py-4 whitespace-nowrap">사원명</th>
-                                        <th className="px-6 py-4 text-center whitespace-nowrap">판매 건수</th>
-                                        <th className="px-6 py-4 text-right whitespace-nowrap">총 매출액</th>
-                                        <th className="px-6 py-4 text-right text-blue-400 font-heavy whitespace-nowrap">공계 입금액</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800/50 text-xl text-white tracking-tighter font-heavy">
-                                    {data.map((item, idx) => (
-                                        <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/[0.02]' : ''} hover:bg-slate-800/50 transition-colors font-heavy`}>
-                                            <td className="px-6 py-4">
-                                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : idx === 1 ? 'bg-slate-400 text-black' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                                                    {idx+1}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 font-heavy font-heavy">
-                                                <div className="text-lg whitespace-nowrap font-heavy">{item.name}</div>
-                                                <div className="text-[10px] text-slate-600 font-bold font-heavy">#{item.sn}</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center whitespace-nowrap font-heavy">
-                                                <span className="text-blue-500 font-black text-3xl font-heavy">{item.count}</span>
-                                                <span className="text-[10px] text-slate-600 ml-1 uppercase font-bold font-heavy">건</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-heavy text-lg whitespace-nowrap font-heavy">{formatKRW(item.total)}</td>
-                                            <td className="px-6 py-4 text-right text-blue-400 font-heavy text-lg whitespace-nowrap font-heavy">{formatKRW(item.deposit)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                <div className="space-y-8 font-bold">
+                    {/* 헤더 */}
+                    <div className="text-center space-y-3 py-4">
+                        <div className="inline-block bg-yellow-500/10 p-4 rounded-2xl mb-2 animate-pulse font-heavy">
+                            <Icon name="award" size={48} className="text-yellow-500"/>
+                        </div>
+                        <h2 className="text-3xl text-white font-heavy uppercase tracking-tighter italic">설국 판매 명예의 전당</h2>
+                        {/* 주간 네비게이션 */}
+                        <div className="flex items-center justify-center gap-4 mt-2">
+                            <button onClick={()=>setWeekOffset(w=>w-1)} className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
+                                <Icon name="chevron-left" size={20}/>
+                            </button>
+                            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-6 py-2.5 min-w-[240px] justify-center">
+                                <span className={`text-sm font-heavy ${isCurrentWeek ? 'text-blue-400' : 'text-slate-400'}`}>{weekLabel}</span>
+                                <span className="text-slate-600 text-xs font-bold">
+                                    {weekRange.start.toLocaleDateString('ko-KR', {month:'short', day:'numeric'})} ~ {weekRange.end.toLocaleDateString('ko-KR', {month:'short', day:'numeric'})}
+                                </span>
+                            </div>
+                            <button onClick={()=>setWeekOffset(w=>Math.min(w+1, 0))} disabled={isCurrentWeek}
+                                className={`p-2 rounded-xl transition-all ${isCurrentWeek ? 'opacity-30 cursor-not-allowed bg-slate-800 text-slate-600' : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'}`}>
+                                <Icon name="chevron-right" size={20}/>
+                            </button>
                         </div>
                     </div>
+
+                    {data.length === 0 ? (
+                        <div className="card text-center py-16 text-slate-500 font-bold">
+                            <Icon name="inbox" size={40} className="mx-auto mb-3 opacity-30"/>
+                            <p>{weekLabel} 판매 기록이 없습니다.</p>
+                        </div>
+                    ) : (
+                    <>
+                        {/* 시상대 (1~3위) */}
+                        <div className="flex flex-wrap justify-center items-end gap-4 md:gap-8 pb-6 font-heavy">
+                            {podium.map((item, i) => {
+                                if (!item) return <div key={i} className="w-full max-w-[180px]"/>;
+                                const cfgs = [
+                                    { color:'border-slate-400',  bg:'bg-slate-400/5',  h:'h-44', rank:'2위', icon:'🥈', textColor:'text-slate-400'  },
+                                    { color:'border-yellow-500', bg:'bg-yellow-500/8', h:'h-56', rank:'1위', icon:'👑', textColor:'text-yellow-500' },
+                                    { color:'border-amber-700',  bg:'bg-amber-700/5',  h:'h-40', rank:'3위', icon:'🥉', textColor:'text-amber-700'  },
+                                ];
+                                const cfg = cfgs[i];
+                                const realIdx = i === 0 ? 1 : i === 1 ? 0 : 2;
+                                return (
+                                    <div key={i} className={`w-full max-w-[180px] ${cfg.h} ${cfg.bg} border-t-4 ${cfg.color} rounded-t-3xl flex flex-col items-center justify-center relative shadow-xl transition-all hover:-translate-y-1`}>
+                                        <div className="absolute -top-6 text-4xl">{cfg.icon}</div>
+                                        <span className={`text-2xl mb-1 italic font-black ${cfg.textColor}`}>{cfg.rank}</span>
+                                        <span className="text-base text-white font-heavy truncate w-full text-center px-2">{item.name}</span>
+                                        <span className="text-[10px] opacity-40 font-mono">#{item.sn}</span>
+                                        <span className="text-xs text-blue-400 font-heavy mt-1">{item.count}건</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* 전체 순위 테이블 */}
+                        <div className="card p-0 overflow-hidden shadow-2xl">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left font-heavy">
+                                    <thead className="bg-slate-800/50 text-slate-500 text-[10px] uppercase tracking-widest">
+                                        <tr className="border-b border-slate-800">
+                                            <th className="px-5 py-4 whitespace-nowrap">순위</th>
+                                            <th className="px-5 py-4 whitespace-nowrap">사원명</th>
+                                            <th className="px-5 py-4 text-center whitespace-nowrap">판매 건수</th>
+                                            <th className="px-5 py-4 text-right whitespace-nowrap">총 매출액</th>
+                                            <th className="px-5 py-4 text-right text-blue-400 whitespace-nowrap">공계 입금액</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800/50 text-white font-heavy">
+                                        {data.map((item, idx) => (
+                                            <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/[0.02]' : ''} hover:bg-slate-800/50 transition-colors`}>
+                                                <td className="px-5 py-4">
+                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black
+                                                        ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20'
+                                                        : idx === 1 ? 'bg-slate-400 text-black'
+                                                        : idx === 2 ? 'bg-amber-700 text-white'
+                                                        : 'bg-slate-800 text-slate-500'}`}>
+                                                        {idx+1}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    <div className="text-base font-heavy">{item.name}</div>
+                                                    <div className="text-[10px] text-slate-600 font-bold">#{item.sn}</div>
+                                                </td>
+                                                <td className="px-5 py-4 text-center whitespace-nowrap">
+                                                    <span className="text-blue-400 font-black text-2xl">{item.count}</span>
+                                                    <span className="text-[10px] text-slate-600 ml-1 uppercase font-bold">건</span>
+                                                </td>
+                                                <td className="px-5 py-4 text-right font-heavy text-base whitespace-nowrap">{formatKRW(item.total)}</td>
+                                                <td className="px-5 py-4 text-right text-blue-400 font-heavy text-base whitespace-nowrap">{formatKRW(item.deposit)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                    )}
                 </div>
             );
         }
+
 
         // --- Admin/Audit Member Management View ---
         function AdminView({ allUsers, config, setConfig, currentUser, records, showToast }) {
