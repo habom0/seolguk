@@ -234,7 +234,9 @@
 
         // config.items 가 있으면 그걸 쓰고, 없으면 DEFAULT_ITEMS 사용
         const getEffectiveItems = (config) => config?.items || DEFAULT_ITEMS;
-        const ROLES = { EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자' };
+        const ROLES = { PENDING: '가입신청', EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자', EVENT: '이벤트용' };
+        // 실제 활동 가능한 역할 (가입신청·이벤트용 제외)
+        const ACTIVE_ROLES = ['사원', '감사팀', '관리자'];
         const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
         const formatKRW = (amount) => {
@@ -445,14 +447,14 @@
                                         setUser(found);
                                         localStorage.setItem('seolguk_user_session', JSON.stringify(found));
                                     } else {
-                                        alert('정보가 올바르지 않거나 승인 대기 중입니다.');
+                                        alert('정보가 올바르지 않습니다.');
                                     }
                                 } else if (authMode === 'signup') {
                                     if (allUsers.find(u => u.sn === sn)) return alert('이미 등록된 번호입니다.');
                                     const uid = 'u_' + Date.now();
-                                    const newUser = { sn, nickname: fd.get('nickname'), password: pw, role: sn === '0000' ? ROLES.ADMIN : ROLES.EMPLOYEE, approved: sn === '0000', joinDate: new Date().toISOString() };
+                                    const newUser = { sn, nickname: fd.get('nickname'), password: pw, role: sn === '0000' ? ROLES.ADMIN : ROLES.PENDING, joinDate: new Date().toISOString() };
                                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), newUser);
-                                    alert('가입 신청 완료!'); setAuthMode('login');
+                                    alert('가입 신청 완료! 관리자 승인을 기다려주세요.'); setAuthMode('login');
                                 } else {
                                     const oldPw = fd.get('oldPassword');
                                     const targetUser = allUsers.find(u => u.sn === sn && u.password === oldPw);
@@ -467,6 +469,28 @@
                                 <input name="password" type="password" maxLength="4" placeholder="비밀번호 (숫자 4자리)" className="input-base text-center font-bold" required />
                                 <button className="btn btn-blue w-full py-4 text-xl font-heavy shadow-blue-900/40 shadow-lg">입장하기</button>
                             </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 가입신청 대기 화면
+            if (user && user.role === ROLES.PENDING) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4" style={{background:'#020617'}}>
+                        <div className="card login-card w-full max-w-md shadow-2xl text-center space-y-6">
+                            <div className="text-6xl">⏳</div>
+                            <h2 className="text-2xl font-heavy text-white">가입 승인 대기 중</h2>
+                            <p className="text-slate-400 font-bold leading-relaxed">
+                                <span className="text-blue-400 font-heavy">{user.nickname}</span>님의 가입 승인 요청을 관리자가 확인 중입니다.<br/>
+                                승인 완료 후 다시 로그인해 주세요.
+                            </p>
+                            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-left space-y-1">
+                                <p className="text-xs text-slate-500 uppercase font-bold">가입 정보</p>
+                                <p className="text-sm text-white font-heavy">닉네임: {user.nickname}</p>
+                                <p className="text-sm text-white font-heavy">고유번호: {user.sn}</p>
+                            </div>
+                            <button onClick={()=>{setUser(null); localStorage.removeItem('seolguk_user_session');}} className="btn btn-red w-full py-3 font-heavy">로그아웃</button>
                         </div>
                     </div>
                 );
@@ -503,7 +527,7 @@
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
                             <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
-                            {(user.role !== ROLES.EMPLOYEE) && (
+                            {(user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) && (
                                 <div className="mt-6 pt-4 border-t border-slate-800">
                                     <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>
                                     <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo" />
@@ -535,7 +559,7 @@
                     <main className="main-area lm-content">
                         {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} />}
                         {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} />}
-                        {activeTab === 'ranking' && <RankingView records={records} />}
+                        {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
                         {activeTab === 'mypage' && <MyPageView user={user} setUser={setUser} showToast={showToast} />}
@@ -548,7 +572,7 @@
                                 { tab:'dashboard', icon:'layout-dashboard', label:'대시보드' },
                                 { tab:'ledger',    icon:'clipboard-list',  label:'장부'     },
                                 { tab:'ranking',   icon:'trophy',           label:'랭킹'     },
-                                ...(user.role !== ROLES.EMPLOYEE ? [{ tab:'audit', icon:'shield-check', label:'감사' }] : []),
+                                ...(( user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) ? [{ tab:'audit', icon:'shield-check', label:'감사' }] : []),
                                 ...(user.role === ROLES.ADMIN    ? [{ tab:'admin', icon:'settings',     label:'설정'  }] : []),
                                 { tab:'mypage', icon:'user-cog', label:'내 설정' },
                             ].map(item => (
@@ -657,13 +681,18 @@
                 showToast("입금액이 복사되었습니다.");
             };
 
+            const buyerSnRef = React.useRef(null);
+
             const submitForm = async (e) => {
                 e.preventDefault();
                 if (total === 0 || isExceeded) return;
                 const recId = 'r_' + Date.now();
                 const newRec = { ...form, timestamp: new Date().toISOString(), sellerUid: user.uid, sellerNickname: user.nickname, sellerSn: user.sn, totalAmount: total, status: 'pending', auditReason: '', auditMemo: '', isEdited: false, penaltyPoints: 0 };
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', recId), newRec);
-                setForm(initialForm); alert("장부가 제출되었습니다.");
+                setForm(initialForm);
+                showToast("장부가 제출되었습니다.");
+                // 한글 입력 유지를 위해 첫 번째 입력 필드에 포커스
+                setTimeout(() => { if (buyerSnRef.current) buyerSnRef.current.focus(); }, 50);
             };
 
             const handleEditSave = async (e) => {
@@ -742,7 +771,7 @@
                                 <div className="grid grid-cols-2 gap-4 font-bold">
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
-                                        <input className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
+                                        <input ref={buyerSnRef} className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
                                     </div>
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 닉네임</label>
@@ -1019,10 +1048,12 @@
             }, [records, historyRange, historyFilter]);
 
             const warningSortedUsers = useMemo(() => {
-                const result = allUsers.filter(u => u.uid && u.nickname).map(u => {
-                    const score = records.filter(r => r.sellerUid === u.uid).reduce((s, r) => s + (parseInt(r.penaltyPoints) || 0), 0);
-                    return { ...u, warningSum: score };
-                });
+                const result = allUsers
+                    .filter(u => u.uid && u.nickname && u.role !== ROLES.ADMIN && u.role !== ROLES.EVENT && u.role !== ROLES.PENDING)
+                    .map(u => {
+                        const score = records.filter(r => r.sellerUid === u.uid).reduce((s, r) => s + (parseInt(r.penaltyPoints) || 0), 0);
+                        return { ...u, warningSum: score };
+                    });
                 return {
                     punished: result.filter(u => u.warningSum > 0).sort((a,b) => b.warningSum - a.warningSum),
                     clean: result.filter(u => u.warningSum === 0).sort((a,b) => a.sn.localeCompare(b.sn))
@@ -1590,19 +1621,20 @@
             );
         }
 
-        function RankingView({ records }) {
+        function RankingView({ records, allUsers }) {
             const data = useMemo(() => {
                 const s = {};
-                // 감사대기(보류아님) + 감사완료(보류후완료 포함) — 보류건 제외
+                // 관리자·이벤트용 uid 목록
+                const excludeUids = new Set(allUsers.filter(u => u.role === ROLES.ADMIN || u.role === ROLES.EVENT).map(u => u.uid));
                 records.filter(r =>
-                    (r.status === 'pending' && !r.auditReason) ||
-                    (r.status === 'completed')
+                    !excludeUids.has(r.sellerUid) &&
+                    ((r.status === 'pending' && !r.auditReason) || r.status === 'completed')
                 ).forEach(r => {
                     if (!s[r.sellerUid]) s[r.sellerUid] = { name: r.sellerNickname, sn: r.sellerSn, count: 0, total: 0, deposit: 0 };
                     s[r.sellerUid].count++; s[r.sellerUid].total += r.totalAmount; s[r.sellerUid].deposit += r.totalAmount * 0.5;
                 });
                 return Object.values(s).sort((a, b) => b.count - a.count);
-            }, [records]);
+            }, [records, allUsers]);
 
             return (
                 <div className="space-y-8 animate-fade-in font-bold">
@@ -1729,9 +1761,11 @@
 
             const getRoleStyles = (role) => {
                 switch(role) {
-                    case ROLES.ADMIN: return "bg-amber-500 text-black";
-                    case ROLES.AUDIT: return "bg-indigo-600 text-white";
-                    default: return "bg-slate-700 text-slate-200";
+                    case ROLES.ADMIN:    return "bg-amber-500 text-black";
+                    case ROLES.AUDIT:    return "bg-indigo-600 text-white";
+                    case ROLES.EVENT:    return "bg-purple-600 text-white";
+                    case ROLES.PENDING:  return "bg-yellow-600 text-white";
+                    default:             return "bg-slate-700 text-slate-200";
                 }
             };
 
@@ -1872,82 +1906,141 @@
                             </button>
                         </div>
                     </section>
-                    <section className="space-y-6 font-heavy">
-                        <div className="flex items-center justify-between px-2 font-heavy">
+                    {/* 사원 명단 관리 */}
+                    <section className="space-y-5">
+                        <div className="flex items-center justify-between px-2">
                             <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
                             {!isAdmin && <span className="text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">읽기 전용 모드</span>}
                         </div>
-                        <div className="card p-0 overflow-hidden shadow-2xl font-heavy">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left font-heavy">
-                                    <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase tracking-widest font-heavy">
-                                        <tr className="border-b border-slate-700">
-                                            <th className="p-6 whitespace-nowrap">고유번호</th>
-                                            <th className="p-6 whitespace-nowrap">닉네임 / 가입일</th>
-                                            <th className="p-6 text-center whitespace-nowrap font-heavy">비밀번호</th>
-                                            <th className="p-6 text-center whitespace-nowrap font-heavy">부여 권한</th>
-                                            {isAdmin && <th className="p-6 text-right whitespace-nowrap">제명</th>}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-800 text-white font-heavy font-heavy">
-                                        {allUsers.sort((a,b)=>a.sn.localeCompare(b.sn)).map(u => (
-                                            <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors font-heavy">
-                                                <td className="p-6 font-heavy font-heavy">
-                                                    <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-center font-mono text-blue-500 text-lg shadow-inner font-heavy">
-                                                        {u.sn}
+
+                        {/* 가입 승인 대기 보드 */}
+                        {(() => {
+                            const pendingUsers = allUsers.filter(u => u.role === ROLES.PENDING);
+                            if (pendingUsers.length === 0) return null;
+                            return (
+                                <div className="card border border-yellow-700/40 bg-yellow-900/10 shadow-xl space-y-3">
+                                    <h3 className="text-base font-heavy flex items-center gap-2 text-yellow-400"><Icon name="clock" size={18}/> 가입 승인 대기 ({pendingUsers.length}명)</h3>
+                                    <div className="space-y-2">
+                                        {pendingUsers.map(u => (
+                                            <div key={u.uid} className="bg-slate-950 border border-yellow-800/30 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-yellow-600/15 rounded-full flex items-center justify-center font-black text-yellow-500 border border-yellow-700/30 text-sm flex-shrink-0">{u.sn.slice(-2)}</div>
+                                                    <div>
+                                                        <p className="text-base font-heavy text-white">{u.nickname} <span className="text-xs text-slate-500 ml-1">#{u.sn}</span></p>
+                                                        <p className="text-xs text-yellow-600 font-bold">가입신청 {formatDate(u.joinDate)}</p>
                                                     </div>
-                                                </td>
-                                                <td className="p-6 whitespace-nowrap font-heavy">
-                                                    <div className="text-2xl font-black">{u.nickname}</div>
-                                                    <div className="text-[10px] text-slate-600 mt-1 uppercase tracking-tighter font-heavy">Joined: {formatDate(u.joinDate)}</div>
-                                                </td>
-                                                <td className="p-6 text-center font-heavy">
-                                                    {u.sn === '0000' ? (
-                                                        <div className="flex items-center justify-center bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner">
-                                                            <span className="text-lg tracking-[0.4em] font-mono text-slate-600 font-heavy">••••</span>
-                                                            <span className="text-[10px] text-slate-700 ml-2 uppercase">관리자 전용</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner font-heavy">
-                                                            <span className="text-lg tracking-[0.4em] font-mono text-slate-400 font-heavy">{showPw[u.uid] ? u.password : '****'}</span>
-                                                            <button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors font-heavy">
-                                                                <Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={18}/>
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="p-6 text-center font-heavy font-heavy">
-                                                    <div className="flex flex-wrap justify-center gap-2 max-w-[280px] mx-auto font-heavy">
-                                                        {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN].map(role => (
-                                                            <button 
-                                                                key={role} 
-                                                                onClick={() => isAdmin && updateUser(u.uid, {role})}
-                                                                disabled={!isAdmin}
-                                                                className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all font-heavy ${u.role === role ? getRoleStyles(role) + ' shadow-lg scale-105' : 'bg-slate-950 text-slate-600 border border-slate-800 hover:border-slate-600 role-btn-inactive'} ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}
-                                                            >
-                                                                {role}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                                {isAdmin && (
-                                                    <td className="p-6 text-right font-heavy font-heavy">
-                                                        <button 
-                                                            onClick={async ()=>{if(window.confirm(`${u.nickname}님을 정말 삭제하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid));}} 
-                                                            disabled={u.sn === '0000'}
-                                                            className={`p-3 transition-colors bg-red-500/5 rounded-xl font-heavy font-heavy ${u.sn === '0000' ? 'opacity-20 cursor-not-allowed' : 'text-red-900 hover:text-red-500 hover:bg-red-500/10'}`}
-                                                        >
-                                                            <Icon name="trash-2" size={18}/>
-                                                        </button>
-                                                    </td>
-                                                )}
-                                            </tr>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => isAdmin && updateUser(u.uid, {role: ROLES.EMPLOYEE})}
+                                                        className="px-4 py-2 rounded-xl text-xs font-heavy bg-green-600 hover:bg-green-500 text-white transition-all flex items-center gap-1">
+                                                        <Icon name="check" size={13}/> 사원 승인
+                                                    </button>
+                                                    <button onClick={async () => { if(window.confirm(`${u.nickname}님의 가입을 거절하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid)); }}
+                                                        className="px-4 py-2 rounded-xl text-xs font-heavy bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white border border-red-700/30 transition-all flex items-center gap-1">
+                                                        <Icon name="x" size={13}/> 거절
+                                                    </button>
+                                                </div>
+                                            </div>
                                         ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* 필터 탭 + 사원 테이블 */}
+                        {(() => {
+                            const [memberFilter, setMemberFilter] = React.useState('all');
+                            const FILTERS = [
+                                { key:'all', label:'전체' },
+                                { key:'사원', label:'사원' },
+                                { key:'감사팀', label:'감사팀' },
+                                { key:'관리자', label:'관리자' },
+                                { key:'이벤트용', label:'이벤트용' },
+                            ];
+                            const filtered = allUsers
+                                .filter(u => u.role !== ROLES.PENDING)
+                                .filter(u => memberFilter === 'all' || u.role === memberFilter)
+                                .sort((a,b) => a.sn.localeCompare(b.sn));
+                            return (
+                                <div className="space-y-4">
+                                    <div className="flex flex-wrap items-center gap-2 bg-slate-900 lm-pill-wrap p-1 rounded-xl border border-slate-800 w-fit">
+                                        {FILTERS.map(f => (
+                                            <button key={f.key} onClick={()=>setMemberFilter(f.key)}
+                                                className={`px-4 py-2 rounded-lg text-xs font-heavy transition-all ${memberFilter===f.key ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 lm-pill-inactive'}`}>
+                                                {f.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="card p-0 overflow-hidden shadow-2xl">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left font-heavy">
+                                                <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase tracking-widest">
+                                                    <tr className="border-b border-slate-700">
+                                                        <th className="p-4 whitespace-nowrap">고유번호</th>
+                                                        <th className="p-4 whitespace-nowrap">닉네임 / 가입일</th>
+                                                        <th className="p-4 text-center whitespace-nowrap">비밀번호</th>
+                                                        <th className="p-4 text-center whitespace-nowrap">부여 권한</th>
+                                                        {isAdmin && <th className="p-4 text-right whitespace-nowrap">제명</th>}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-800 text-white font-heavy">
+                                                    {filtered.map(u => (
+                                                        <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors">
+                                                            <td className="p-4">
+                                                                <div className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 text-center font-mono text-blue-500 text-base shadow-inner w-fit mx-auto">{u.sn}</div>
+                                                            </td>
+                                                            <td className="p-4 whitespace-nowrap">
+                                                                <div className="text-base font-black">{u.nickname}</div>
+                                                                <div className="text-[10px] text-slate-600 mt-0.5">Joined: {formatDate(u.joinDate)}</div>
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                {u.sn === '0000' ? (
+                                                                    <div className="flex items-center justify-center bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner">
+                                                                        <span className="text-base tracking-[0.4em] font-mono text-slate-600">••••</span>
+                                                                        <span className="text-[10px] text-slate-700 ml-2">관리자 전용</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center justify-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner">
+                                                                        <span className="text-base tracking-[0.4em] font-mono text-slate-400">{showPw[u.uid] ? u.password : '****'}</span>
+                                                                        <button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors">
+                                                                            <Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={16}/>
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                <div className="flex flex-wrap justify-center gap-1.5 max-w-[340px] mx-auto">
+                                                                    {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN, ROLES.EVENT].map(role => (
+                                                                        <button key={role} onClick={() => isAdmin && updateUser(u.uid, {role})} disabled={!isAdmin}
+                                                                            className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${u.role === role ? getRoleStyles(role) + ' shadow-lg scale-105' : 'bg-slate-950 text-slate-600 border border-slate-800 hover:border-slate-600 role-btn-inactive'} ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}>
+                                                                            {role}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                            {isAdmin && (
+                                                                <td className="p-4 text-right">
+                                                                    <button onClick={async ()=>{if(window.confirm(`${u.nickname}님을 정말 삭제하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid));}}
+                                                                        disabled={u.sn === '0000'}
+                                                                        className={`p-2.5 rounded-xl transition-colors ${u.sn === '0000' ? 'opacity-20 cursor-not-allowed text-slate-700' : 'text-red-900 hover:text-red-500 hover:bg-red-500/10 bg-red-500/5'}`}>
+                                                                        <Icon name="trash-2" size={16}/>
+                                                                    </button>
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    ))}
+                                                    {filtered.length === 0 && (
+                                                        <tr><td colSpan="5" className="p-8 text-center text-slate-600 font-bold">해당 권한의 사원이 없습니다.</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </section>
+
 
                     {isSuperAdmin && (
                     <section className="space-y-6 font-heavy">
