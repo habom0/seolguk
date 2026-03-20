@@ -1708,8 +1708,6 @@
         function AdminView({ allUsers, config, setConfig, currentUser, records, showToast }) {
             const [showPw, setShowPw] = useState({});
             const isAdmin = currentUser.role === ROLES.ADMIN;
-            const isSuperAdmin = currentUser.sn === '0000';
-            const [resetConfirm, setResetConfirm] = useState(null);
             const [noticeText, setNoticeText] = useState(config.eventNotice || "");
 
             useEffect(() => { setNoticeText(config.eventNotice || ""); }, [config.eventNotice]);
@@ -1769,30 +1767,7 @@
                 }
             };
 
-            const handleReset = async (type) => {
-                if (type === 'records') {
-                    const snap = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js").then(m => m.getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'records')));
-                    const { getDocs: gd } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-                    const recSnap = await gd(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
-                    for (const d of recSnap.docs) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', d.id)); }
-                    showToast("장부 기록이 전체 초기화되었습니다.");
-                } else if (type === 'ranking') {
-                    // 랭킹은 records 기반이므로 완료 상태 기록만 삭제
-                    const { getDocs: gd } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-                    const recSnap = await gd(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
-                    for (const d of recSnap.docs) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', d.id)); }
-                    showToast("랭킹 데이터가 초기화되었습니다.");
-                } else if (type === 'audit') {
-                    // 감사팀 랭킹 = 각 record의 auditorName 기록을 초기화
-                    const { getDocs: gd } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-                    const recSnap = await gd(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
-                    for (const d of recSnap.docs) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', d.id), { auditorName: '' }); }
-                    showToast("감사팀 랭킹이 초기화되었습니다.");
-                }
-                setResetConfirm(null);
-            };
 
-            const RESET_LABELS = { records: '장부 기록 전체', ranking: '판매 랭킹 데이터', audit: '감사팀 랭킹' };
 
             return (
                 <div className="space-y-10 animate-fade-in font-bold">
@@ -2041,51 +2016,6 @@
                         })()}
                     </section>
 
-
-                    {isSuperAdmin && (
-                    <section className="space-y-6 font-heavy">
-                            <div className="px-2">
-                                <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="database" className="text-red-500"/> 데이터 초기화</h2>
-                                <p className="text-xs text-red-400 mt-2 font-bold uppercase tracking-widest">⚠ 0000 관리자 전용 — 초기화 후 복구 불가</p>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {[
-                                    { key: 'records', icon: 'file-x', label: '장부 기록 전체 초기화', desc: '모든 판매 장부 기록을 삭제합니다', color: 'red' },
-                                    { key: 'ranking', icon: 'trophy', label: '판매 랭킹 초기화', desc: '랭킹 산정 기준 데이터를 삭제합니다', color: 'orange' },
-                                    { key: 'audit', icon: 'shield', label: '감사팀 랭킹 초기화', desc: '감사관 처리 실적 기록을 초기화합니다', color: 'yellow' },
-                                ].map(item => (
-                                    <div key={item.key} className={`card border border-red-900/30 bg-red-950/10 space-y-4 shadow-xl`}>
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-red-600/10 p-3 rounded-xl"><Icon name={item.icon} className="text-red-500" size={24}/></div>
-                                            <div><p className="text-white font-heavy text-sm">{item.label}</p><p className="text-[10px] text-slate-600 mt-0.5 font-bold">{item.desc}</p></div>
-                                        </div>
-                                        <button onClick={()=>setResetConfirm(item.key)} className="w-full py-3 bg-red-600/10 hover:bg-red-600/30 border border-red-700/30 text-red-400 hover:text-red-200 rounded-xl font-heavy text-sm transition-all flex items-center justify-center gap-2">
-                                            <Icon name="trash-2" size={16}/> 초기화 실행
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    )}
-
-                    {resetConfirm && (
-                        <Modal title="⚠️ 데이터 초기화 확인" onClose={()=>setResetConfirm(null)}>
-                            <div className="space-y-6 font-heavy">
-                                <div className="bg-red-950/40 border border-red-700/40 rounded-2xl p-8 text-center space-y-3">
-                                    <div className="text-5xl">🗑️</div>
-                                    <p className="text-red-400 font-heavy text-xl">정말로 초기화하시겠습니까?</p>
-                                    <p className="text-white font-heavy text-lg bg-red-900/30 px-4 py-2 rounded-xl inline-block">{RESET_LABELS[resetConfirm]}</p>
-                                    <p className="text-red-600 text-sm font-bold">이 작업은 되돌릴 수 없습니다.</p>
-                                </div>
-                                <div className="flex gap-4">
-                                    <button onClick={()=>setResetConfirm(null)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl font-heavy text-lg transition-all">취소</button>
-                                    <button onClick={()=>handleReset(resetConfirm)} className="flex-1 py-4 bg-red-600 hover:bg-red-500 rounded-2xl font-heavy text-lg text-white transition-all flex items-center justify-center gap-2">
-                                        <Icon name="trash-2" size={18}/> 초기화 확정
-                                    </button>
-                                </div>
-                            </div>
-                        </Modal>
-                    )}
                 </div>
             );
         }
