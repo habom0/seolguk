@@ -269,13 +269,17 @@
 
         // items 반환 — itemOrder 배열이 있으면 그 순서 사용, 없으면 DEFAULT_ORDER
         const getEffectiveItems = (config) => {
-            const items = config?.items || DEFAULT_ITEMS;
+            const rawItems = config?.items;
+            // null / 비어있는 객체 / 키 없는 경우 DEFAULT_ITEMS 사용
+            const items = (rawItems && typeof rawItems === 'object' && Object.keys(rawItems).length > 0)
+                ? rawItems
+                : DEFAULT_ITEMS;
             const order = config?.itemOrder || DEFAULT_ORDER;
-            // order 배열 순서대로 정렬된 객체 반환 (누락된 키는 뒤에 추가)
             const allKeys = [...order.filter(k => items[k]), ...Object.keys(items).filter(k => !order.includes(k))];
             const sorted = {};
             allKeys.forEach(k => { if (items[k]) sorted[k] = items[k]; });
-            return sorted;
+            // 결과가 비어있으면 DEFAULT_ITEMS 반환
+            return Object.keys(sorted).length > 0 ? sorted : DEFAULT_ITEMS;
         };
         const ROLES = { PENDING: '가입신청', EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자', EVENT: '이벤트용' };
         // 실제 활동 가능한 역할 (가입신청·이벤트용 제외)
@@ -707,6 +711,7 @@
                 const totals = {};
                 itemKeys.forEach(k => { totals[k] = 0; });
                 myWeekRecords.forEach(r => {
+                    if (!r) return;
                     itemKeys.forEach(k => { totals[k] += (parseInt(r[k]) || 0); });
                 });
                 return totals;
