@@ -58,34 +58,66 @@
         .event-gradient { background: linear-gradient(90deg, #1e293b 0%, #1e3a8a 50%, #1e293b 100%); }
         .copy-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #16a34a; color: #fff; padding: 0.875rem 1.75rem; border-radius: 0.875rem; z-index: 300; animation: slideUp 0.3s ease-out; font-weight: 800; }
         @keyframes slideUp { from { transform: translateY(120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; overflow-y: auto; }
-        .modal-overlay > div { max-height: 90vh; overflow-y: auto; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(8px); display: flex; align-items: flex-start; justify-content: center; z-index: 200; padding: 1rem; overflow-y: auto; }
+        .modal-overlay > div { width: 100%; max-width: 42rem; margin: auto; }
 
         /* ══ Layout ══ */
         .app-shell { display: flex; min-height: 100vh; }
-        .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; z-index: 40; }
-        .main-area { flex: 1; min-width: 0; padding: 1.5rem; overflow-x: hidden; }
+        .sidebar { width: 220px; min-width: 220px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; z-index: 40; }
+        .main-area { flex: 1; min-width: 0; padding: 1.25rem; overflow-x: hidden; }
         .mobile-topbar { display: none; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0.75rem 1rem; position: sticky; top: 0; z-index: 40; align-items: center; justify-content: space-between; }
-        .mobile-bottomnav { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #0f172a; border-top: 1px solid #1e293b; padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom)); }
+        .mobile-bottomnav { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #0f172a; border-top: 1px solid #1e293b; padding: 0.4rem 0 calc(0.4rem + env(safe-area-inset-bottom)); }
         .mobile-bottomnav-inner { display: flex; justify-content: space-around; align-items: center; }
-        .mob-btn { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.4rem 0.75rem; border-radius: 0.6rem; background: none; border: none; cursor: pointer; color: #64748b; font-size: 0.6rem; font-weight: 800; font-family: inherit; transition: 0.2s; min-width: 52px; }
+        .mob-btn { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.35rem 0.5rem; border-radius: 0.5rem; background: none; border: none; cursor: pointer; color: #64748b; font-size: 0.55rem; font-weight: 800; font-family: inherit; transition: 0.2s; min-width: 44px; }
         .mob-btn.active { color: #3b82f6; }
-        .mob-btn:hover { color: #94a3b8; }
 
+        /* ══ Mobile ≤767px ══ */
         @media (max-width: 767px) {
             .sidebar { display: none; }
             .mobile-topbar { display: flex; }
             .mobile-bottomnav { display: block; }
-            .main-area { padding: 0.875rem 0.875rem calc(5rem + env(safe-area-inset-bottom)); }
-            .card { border-radius: 1rem; padding: 1rem; }
-            h1,h2 { font-size: 1.1rem !important; }
-            h3 { font-size: 1rem !important; }
+            .main-area { padding: 0.75rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom)); }
+            .card { border-radius: 0.875rem; padding: 0.875rem; }
+
+            /* 텍스트 크기 제한 */
+            .font-heavy { font-weight: 900; }
+            .text-4xl { font-size: 1.5rem !important; }
+            .text-3xl { font-size: 1.25rem !important; }
+            .text-2xl { font-size: 1.1rem !important; }
+            .text-xl  { font-size: 1rem !important; }
+
+            /* 판매 기록 폼 — 모바일에서 1열 */
+            .form-grid { grid-template-columns: 1fr !important; }
+            .form-side  { border-radius: 1rem; padding: 1rem !important; }
+
+            /* 테이블 글씨 */
+            table { font-size: 0.75rem; }
+            th, td { padding: 0.5rem 0.625rem !important; }
+
+            /* 감사 대기열 카드 */
+            .queue-card { flex-direction: column !important; gap: 1rem !important; }
+            .queue-buttons { min-width: unset !important; width: 100% !important; flex-direction: row !important; }
+            .queue-buttons button { flex: 1; }
+
+            /* 차트 영역 */
+            .chart-wrap { height: 120px !important; }
+
+            /* 시상대 */
+            .podium-item { max-width: 100px !important; }
+
+            /* 유틸 */
             .hide-mobile { display: none !important; }
-            .full-mobile { width: 100% !important; max-width: 100% !important; }
+            .full-mobile { width: 100% !important; }
+            .stack-mobile { flex-direction: column !important; }
+            .gap-mobile-sm { gap: 0.5rem !important; }
         }
+
+        /* ══ Tablet 768–1023px ══ */
         @media (min-width: 768px) and (max-width: 1023px) {
-            .sidebar { width: 200px; min-width: 200px; padding: 1rem; }
-            .main-area { padding: 1.25rem; }
+            .sidebar { width: 190px; min-width: 190px; padding: 0.875rem; }
+            .main-area { padding: 1rem; }
+            .text-4xl { font-size: 1.75rem !important; }
+            .text-3xl { font-size: 1.4rem !important; }
         }
 
         /* ══ Light mode — nav stays dark, content goes light ══ */
@@ -780,28 +812,28 @@
                     </div>
 
                     <div className="card shadow-2xl">
-                        <h2 className="text-2xl font-heavy mb-8 flex items-center gap-2 font-heavy text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 기록 작성</h2>
-                        <form onSubmit={submitForm} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                            <div className="lg:col-span-3 space-y-6 font-bold">
-                                <div className="grid grid-cols-2 gap-4 font-bold">
+                        <h2 className="text-xl font-heavy mb-5 flex items-center gap-2 text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 장부 작성</h2>
+                        <form onSubmit={submitForm} className="form-grid grid grid-cols-1 lg:grid-cols-5 gap-5">
+                            <div className="lg:col-span-3 space-y-4 font-bold">
+                                <div className="grid grid-cols-2 gap-3 font-bold">
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 닉네임</label>
-                                        <input ref={buyerNickRef} className="input-base font-bold text-lg" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" autoComplete="off" />
+                                        <input ref={buyerNickRef} className="input-base font-bold text-base" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" autoComplete="off" />
                                     </div>
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
-                                        <input ref={buyerSnRef} type="text" inputMode="numeric" pattern="[0-9]*" className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value.replace(/[^0-9]/g,'')})} required placeholder="0000" />
+                                        <input ref={buyerSnRef} type="text" className="input-base font-bold text-base" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value.replace(/[^0-9]/g,'')})} required placeholder="0000" />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {itemKeys.map(k => (
                                         <div key={k}>
-                                            <label className="text-base text-slate-300 mb-2 flex items-center gap-1 font-heavy ml-1">{items[k].emoji} {items[k].label}</label>
+                                            <label className="text-sm text-slate-300 mb-1.5 flex items-center gap-1 font-heavy ml-1">{items[k].emoji} {items[k].label}</label>
                                             <input
                                                 type="text"
-                                                inputMode="numeric"
-                                                pattern="[0-9]*"
-                                                className={`input-base font-heavy text-xl ${(parseInt(form[k]) > items[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`}
+                                               
+                                               
+                                                className={`input-base font-heavy text-lg ${(parseInt(form[k]) > items[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`}
                                                 value={form[k]||""}
                                                 onChange={e => { const v = e.target.value.replace(/[^0-9]/g,''); setForm({...form, [k]: v}); }}
                                                 placeholder={`최대 ${items[k].max}`}
@@ -814,22 +846,28 @@
                                     <input className="input-base font-bold" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} placeholder="특이사항 기재" />
                                 </div>
                             </div>
-                            <div className="lg:col-span-2 bg-slate-950 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-inner font-heavy">
-                                <div className="space-y-6 font-heavy">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 font-heavy text-lg">총 매출액</span><div className="text-right font-heavy"><p className="text-3xl text-white font-heavy">{formatKRW(total)}</p></div></div>
-                                    <div className="h-px bg-slate-900 font-heavy"></div>
-                                    <div className="flex justify-between items-end font-heavy"><span className="text-blue-500 font-heavy text-lg">공계 입금액(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400 font-heavy">{formatKRW(total * 0.5)}</p></div></div>
-                                    <button type="button" onClick={copyAmount} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-sm transition-all border border-blue-500/20 font-bold">
-                                        <Icon name="copy" size={16}/> 금액 복사 (콤마 제외)
+                            <div className="form-side lg:col-span-2 bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col gap-4 shadow-inner font-heavy">
+                                <div className="space-y-3 font-heavy">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-500 font-heavy text-sm">총 매출액</span>
+                                        <p className="text-2xl text-white font-heavy">{formatKRW(total)}</p>
+                                    </div>
+                                    <div className="h-px bg-slate-900"/>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-blue-500 font-heavy text-sm">공계 입금액(50%)</span>
+                                        <p className="text-2xl text-blue-400 font-heavy">{formatKRW(total * 0.5)}</p>
+                                    </div>
+                                    <button type="button" onClick={copyAmount} className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-sm transition-all border border-blue-500/20 font-bold">
+                                        <Icon name="copy" size={15}/> 금액 복사 (콤마 제외)
                                     </button>
                                     <button type="button" onClick={copyReason}
                                         disabled={!form.buyerNickname && !form.buyerSn}
-                                        className="w-full flex items-center justify-center gap-2 py-3 bg-green-600/10 hover:bg-green-600/20 text-green-400 rounded-xl text-sm transition-all border border-green-500/20 font-bold disabled:opacity-30">
-                                        <Icon name="clipboard-copy" size={16}/> 입금 사유 복사
+                                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-600/10 hover:bg-green-600/20 text-green-400 rounded-xl text-sm transition-all border border-green-500/20 font-bold disabled:opacity-30">
+                                        <Icon name="clipboard-copy" size={15}/> 입금 사유 복사
                                     </button>
                                 </div>
-                                {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce mt-4">⚠️ 최대 수량 초과!</p>}
-                                <button type="submit" disabled={isExceeded} className={`btn w-full py-5 text-2xl font-heavy mt-4 shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue shadow-blue-900/40 shadow-lg'}`}>장부 제출하기</button>
+                                {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce">⚠️ 최대 수량 초과!</p>}
+                                <button type="submit" disabled={isExceeded} className={`btn w-full py-4 text-xl font-heavy shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue'}`}>장부 제출하기</button>
                             </div>
                         </form>
                     </div>
@@ -1085,7 +1123,7 @@
                             </div>
 
                             {/* 차트 영역 */}
-                            <div className="relative" style={{height:'160px'}}>
+                            <div className="chart-wrap relative" style={{height:'160px'}}>
                                 {/* 평균선 */}
                                 {avg30Eok > 0 && (
                                     <div className="absolute left-0 right-0 pointer-events-none"
@@ -1267,51 +1305,45 @@
                                     </span>
                                 ));
                                 return (
-                                <div key={r.id} className="card border-l-8 border-l-blue-600 flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl">
-                                    <div className="flex-1 space-y-4">
-                                        <div className="flex flex-wrap gap-4 items-center">
-                                            <div className="bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+                                <div key={r.id} className="card border-l-8 border-l-blue-600 shadow-xl">
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex flex-wrap gap-3 items-center">
+                                            <div className="bg-slate-800 px-3 py-2 rounded-xl border border-slate-700">
                                                 <p className="text-[10px] text-slate-500 uppercase font-heavy">판매 사원</p>
-                                                <p className="text-lg font-heavy text-white">{r.sellerNickname} <span className="text-xs text-slate-400">({r.sellerSn})</span></p>
+                                                <p className="text-base font-heavy text-white">{r.sellerNickname} <span className="text-xs text-slate-400">({r.sellerSn})</span></p>
                                             </div>
-                                            <div className="bg-blue-900/40 px-5 py-3 rounded-xl border-2 border-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.2)]">
+                                            <div className="bg-blue-900/40 px-4 py-2.5 rounded-xl border-2 border-blue-600">
                                                 <p className="text-[10px] text-blue-400 uppercase font-black mb-1">🔍 구매자 확인 (대조 필수)</p>
-                                                <p className="text-xl font-black text-blue-50 tracking-tight">{r.buyerNickname} <span className="text-sm font-bold text-blue-400">#{r.buyerSn}</span></p>
+                                                <p className="text-lg font-black text-blue-50">{r.buyerNickname} <span className="text-sm font-bold text-blue-400">#{r.buyerSn}</span></p>
                                             </div>
                                             <div className="text-xs text-slate-400 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800">
-                                                <Icon name="clock" size={12} className="inline mr-1 mb-0.5" />
-                                                작성: <span className="text-white">{formatFullDateTime(r.timestamp)}</span>
+                                                <Icon name="clock" size={12} className="inline mr-1 mb-0.5"/>
+                                                <span className="text-white">{formatFullDateTime(r.timestamp)}</span>
                                             </div>
                                         </div>
-                                        {/* 품목 뱃지 */}
-                                        {qSummary.length > 0 && (
-                                            <div className="flex flex-wrap gap-2 pl-1">
-                                                {qSummary}
-                                            </div>
-                                        )}
-                                        {/* 비고 */}
+                                        {qSummary.length > 0 && <div className="flex flex-wrap gap-2">{qSummary}</div>}
                                         {r.note && (
-                                            <div className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 ml-1 flex items-start gap-2">
-                                                <Icon name="message-square" size={14} className="text-slate-500 flex-shrink-0 mt-0.5"/>
+                                            <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 flex items-start gap-2">
+                                                <Icon name="message-square" size={13} className="text-slate-500 flex-shrink-0 mt-0.5"/>
                                                 <p className="text-sm text-slate-300 font-bold leading-snug">{r.note}</p>
                                             </div>
                                         )}
-                                        <div className="flex gap-10 font-heavy pl-1">
+                                        <div className="flex flex-wrap gap-6 font-heavy">
                                             <div>
-                                                <p className="text-[10px] text-slate-600 uppercase mb-1">매출액</p>
-                                                <p className="text-2xl font-heavy">{formatKRW(r.totalAmount)}</p>
-                                                <p className="text-[10px] text-slate-600 mt-0.5">({r.totalAmount.toLocaleString()}원)</p>
+                                                <p className="text-[10px] text-slate-600 uppercase mb-0.5">매출액</p>
+                                                <p className="text-xl font-heavy">{formatKRW(r.totalAmount)}</p>
+                                                <p className="text-[10px] text-slate-600">({r.totalAmount.toLocaleString()}원)</p>
                                             </div>
                                             <div>
-                                                <p className="text-[10px] text-blue-500 uppercase mb-1">입금액</p>
-                                                <p className="text-2xl text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</p>
-                                                <p className="text-[10px] text-blue-700 mt-0.5">({(r.totalAmount * 0.5).toLocaleString()}원)</p>
+                                                <p className="text-[10px] text-blue-500 uppercase mb-0.5">입금액</p>
+                                                <p className="text-xl text-blue-400 font-heavy">{formatKRW(r.totalAmount * 0.5)}</p>
+                                                <p className="text-[10px] text-blue-700">({(r.totalAmount * 0.5).toLocaleString()}원)</p>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col gap-3 min-w-[240px]">
-                                        <button onClick={async ()=>{ await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', r.id), { status: 'completed', auditedAt: new Date().toISOString(), auditorName: user.nickname }); showToast("감사 승인 완료"); }} className="btn btn-blue py-5 text-xl font-heavy shadow-lg"><Icon name="check-circle"/> 감사 승인</button>
-                                        <button onClick={()=>setRsnModal(r)} className="btn btn-red py-4 text-lg font-heavy"><Icon name="alert-triangle"/> 보류/경고부여</button>
+                                        <div className="flex gap-3 queue-buttons">
+                                            <button onClick={async ()=>{ await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', r.id), { status: 'completed', auditedAt: new Date().toISOString(), auditorName: user.nickname }); showToast("감사 승인 완료"); }} className="btn btn-blue flex-1 py-3 text-base font-heavy"><Icon name="check-circle" size={18}/> 감사 승인</button>
+                                            <button onClick={()=>setRsnModal(r)} className="btn btn-red flex-1 py-3 text-base font-heavy"><Icon name="alert-triangle" size={18}/> 보류/경고</button>
+                                        </div>
                                     </div>
                                 </div>
                                 );
@@ -1923,7 +1955,7 @@
                                 const cfg = cfgs[i];
                                 const realIdx = i === 0 ? 1 : i === 1 ? 0 : 2;
                                 return (
-                                    <div key={i} className={`w-full max-w-[180px] ${cfg.h} ${cfg.bg} border-t-4 ${cfg.color} rounded-t-3xl flex flex-col items-center justify-center relative shadow-xl transition-all hover:-translate-y-1`}>
+                                    <div key={i} className={`podium-item w-full max-w-[180px] ${cfg.h} ${cfg.bg} border-t-4 ${cfg.color} rounded-t-3xl flex flex-col items-center justify-center relative shadow-xl transition-all hover:-translate-y-1`}>
                                         <div className="absolute -top-6 text-4xl">{cfg.icon}</div>
                                         <span className={`text-2xl mb-1 italic font-black ${cfg.textColor}`}>{cfg.rank}</span>
                                         <span className="text-base text-white font-heavy truncate w-full text-center px-2">{item.name}</span>
@@ -2148,7 +2180,7 @@
                                     <div className="col-span-2">
                                         <input
                                             type="text"
-                                            inputMode="numeric"
+                                           
                                             value={itemDraft[k].max}
                                             onChange={e => updateItemField(k, 'max', parseInt(e.target.value.replace(/[^0-9]/g,''))||1)}
                                             className="input-base py-2 text-sm font-heavy text-center"
@@ -2159,7 +2191,7 @@
                                         <div className="relative">
                                             <input
                                                 type="text"
-                                                inputMode="numeric"
+                                               
                                                 value={itemDraft[k].price}
                                                 onChange={e => updateItemField(k, 'price', parseInt(e.target.value.replace(/[^0-9]/g,''))||0)}
                                                 className="input-base py-2 text-sm font-heavy pr-16"
