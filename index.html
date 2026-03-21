@@ -439,7 +439,8 @@
                     <div className="min-h-screen flex items-center justify-center p-4">
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
-                            <h1 className="text-3xl font-heavy mb-8">설국 인트라넷</h1>
+                            <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.1</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -515,7 +516,10 @@
                     <div className="mobile-topbar">
                         <div className="flex items-center gap-2">
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
-                            <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
+                            <div>
+                                <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.1</span>
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <button onClick={()=>setDarkMode(!darkMode)} className="p-2 rounded-lg text-slate-400 hover:text-white transition-all">
@@ -532,7 +536,10 @@
                     <nav className="sidebar lm-nav">
                         <div className="flex items-center gap-3 py-4 px-1 mb-2">
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
-                            <span className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</span>
+                            <div>
+                                <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.1</div>
+                            </div>
                         </div>
                         <div className="flex-1 space-y-1">
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
@@ -541,7 +548,8 @@
                             {(user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) && (
                                 <div className="mt-6 pt-4 border-t border-slate-800">
                                     <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>
-                                    <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo" />
+                                    <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo"
+                                        badge={records.filter(r => r.status === 'pending' && !r.auditReason).length || 0} />
                                 </div>
                             )}
                         </div>
@@ -586,12 +594,19 @@
                                 ...(( user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) ? [{ tab:'audit', icon:'shield-check', label:'감사' }] : []),
                                 ...(user.role === ROLES.ADMIN    ? [{ tab:'admin', icon:'settings',     label:'설정'  }] : []),
                                 { tab:'mypage', icon:'user-cog', label:'내 설정' },
-                            ].map(item => (
-                                <button key={item.tab} onClick={()=>setActiveTab(item.tab)} className={`mob-btn ${activeTab===item.tab ? 'active' : ''}`}>
-                                    <Icon name={item.icon} size={22}/>
-                                    <span>{item.label}</span>
-                                </button>
-                            ))}
+                            ].map(item => {
+                                const isAudit = item.tab === 'audit';
+                                const pendingCount = isAudit ? records.filter(r => r.status === 'pending' && !r.auditReason).length : 0;
+                                return (
+                                    <button key={item.tab} onClick={()=>setActiveTab(item.tab)} className={`mob-btn relative ${activeTab===item.tab ? 'active' : ''}`}>
+                                        <Icon name={item.icon} size={22}/>
+                                        {isAudit && pendingCount > 0 && (
+                                            <span className="absolute top-0 right-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-tight">{pendingCount}</span>
+                                        )}
+                                        <span>{item.label}</span>
+                                    </button>
+                                );
+                            })}
                             <button onClick={()=>setShowNotifModal(true)} className={`mob-btn relative ${showNotifModal ? 'active' : ''}`}>
                                 <Icon name="bell" size={22}/>
                                 {unreadCount > 0 && <span className="notif-dot"/>}
@@ -639,9 +654,11 @@
             );
         }
 
-        const NavItem = ({ active, onClick, icon, label, color = "blue" }) => (
+        const NavItem = ({ active, onClick, icon, label, color = "blue", badge }) => (
             <button onClick={onClick} className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${active ? (color === 'indigo' ? 'bg-indigo-600' : color === 'slate' ? 'bg-slate-700' : 'bg-blue-600') + ' text-white shadow-lg' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}>
-                <Icon name={icon}/><span className="font-bold">{label}</span>
+                <Icon name={icon}/>
+                <span className="font-bold flex-1 text-left">{label}</span>
+                {badge > 0 && <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-tight">{badge}</span>}
             </button>
         );
 
