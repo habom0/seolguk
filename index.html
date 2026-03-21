@@ -441,7 +441,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.3</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.5</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -519,7 +519,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.3</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.5</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -539,7 +539,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.3</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.5</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -1095,7 +1095,7 @@
 
                     {editing && (
                         <Modal title="장부 수정" onClose={()=>setEditing(null)}>
-                            <form onSubmit={handleEditSave} className="space-y-6 font-bold">
+                            <form onSubmit={handleEditSave} className="space-y-5 font-bold">
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 font-bold">
                                     {itemKeys.map(k => (
                                         <div key={k} className="space-y-1">
@@ -1104,9 +1104,19 @@
                                         </div>
                                     ))}
                                 </div>
-                                <div className="p-6 bg-red-950/20 rounded-3xl border border-red-900/30 font-bold">
-                                    <label className="text-xs text-red-500 uppercase font-heavy mb-2 block">수정 사유 (필수)</label>
-                                    <textarea className="input-base h-24 font-bold" value={reason} onChange={e=>setReason(e.target.value)} required />
+                                <div className="space-y-2">
+                                    <label className="text-xs text-slate-400 uppercase font-heavy block">비고 (특이사항)</label>
+                                    <input type="text" className="input-base font-bold" value={editing.note||''} onChange={e=>setEditing({...editing, note: e.target.value})}
+                                        placeholder={config.notePlaceholder || "특이사항 기재"} />
+                                </div>
+                                <div className="p-5 bg-red-950/20 rounded-2xl border border-red-900/30 font-bold space-y-3">
+                                    <div className="flex items-start gap-2 bg-red-900/20 border border-red-700/30 rounded-xl px-3 py-2.5">
+                                        <Icon name="alert-triangle" size={14} className="text-red-400 flex-shrink-0 mt-0.5"/>
+                                        <p className="text-xs text-red-300 font-heavy leading-relaxed">보류건은 반드시 처리 내용이나 수정 사유를 작성해야 재감사를 받을 수 있습니다.</p>
+                                    </div>
+                                    <label className="text-xs text-red-500 uppercase font-heavy block">수정 사유 (필수)</label>
+                                    <textarea className="input-base h-28 font-bold" value={reason} onChange={e=>setReason(e.target.value)} required
+                                        placeholder="예) 수량 오기입으로 수정 / 구매자 확인 후 재작성 / 보류 사유 확인 후 처리 완료 등" />
                                 </div>
                                 <button type="submit" className="btn btn-blue w-full py-5 text-xl font-heavy shadow-xl">재제출</button>
                             </form>
