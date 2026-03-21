@@ -720,9 +720,20 @@
             };
 
             const copyReason = () => {
-                // 구매품목 요약 생성
-                const itemSummary = itemKeys.filter(k => parseInt(form[k]) > 0).map(k => `${items[k].label}${form[k]}개`).join(', ');
-                const text = `${form.buyerSn}/${form.buyerNickname}/${itemSummary || '품목미입력'}`;
+                // 품목별 짧은 약칭 매핑
+                const SHORT = {
+                    fullpack:   '풀팩',
+                    honeyjelly: '꿀젤',
+                    honeystick: '꿀스',
+                    painkiller: '진통',
+                    elixir:     '엘릭',
+                    parachute:  '낙',
+                };
+                const itemSummary = itemKeys
+                    .filter(k => parseInt(form[k]) > 0)
+                    .map(k => `${SHORT[k] || items[k].label.slice(0,2)}${form[k]}`)
+                    .join(' ');
+                const text = `${form.buyerSn}/${form.buyerNickname} - ${itemSummary || '품목미입력'}`;
                 navigator.clipboard ? navigator.clipboard.writeText(text) : (() => { const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); })();
                 showToast("입금 사유가 복사되었습니다.");
             };
@@ -730,8 +741,7 @@
             const buyerSnRef = React.useRef(null);
             const buyerNickRef = React.useRef(null);
 
-            const submitForm = async (e) => {
-                e.preventDefault();
+            const submitForm = async () => {
                 if (total === 0 || isExceeded) return;
                 const recId = 'r_' + Date.now();
                 const newRec = { ...form, timestamp: new Date().toISOString(), sellerUid: user.uid, sellerNickname: user.nickname, sellerSn: user.sn, totalAmount: total, status: 'pending', auditReason: '', auditMemo: '', isEdited: false, penaltyPoints: 0 };
@@ -813,7 +823,7 @@
 
                     <div className="card shadow-2xl">
                         <h2 className="text-xl font-heavy mb-5 flex items-center gap-2 text-white"><Icon name="edit-3" className="text-blue-500"/> 판매 장부 작성</h2>
-                        <form onSubmit={submitForm} className="form-grid grid grid-cols-1 lg:grid-cols-5 gap-5">
+                        <form onSubmit={e=>e.preventDefault()} className="form-grid grid grid-cols-1 lg:grid-cols-5 gap-5">
                             <div className="lg:col-span-3 space-y-4 font-bold">
                                 <div className="grid grid-cols-2 gap-3 font-bold">
                                     <div>
@@ -867,7 +877,7 @@
                                     </button>
                                 </div>
                                 {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce">⚠️ 최대 수량 초과!</p>}
-                                <button type="submit" disabled={isExceeded} className={`btn w-full py-4 text-xl font-heavy shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue'}`}>장부 제출하기</button>
+                                <button type="button" onClick={submitForm} disabled={isExceeded} className={`btn w-full py-4 text-xl font-heavy shadow-xl ${isExceeded ? 'bg-red-600 opacity-50' : 'btn-blue'}`}>장부 제출하기</button>
                             </div>
                         </form>
                     </div>
