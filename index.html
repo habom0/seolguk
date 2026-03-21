@@ -334,6 +334,7 @@
             const [darkMode, setDarkMode] = useState(true);
             const [notifications, setNotifications] = useState([]);
             const [showNotifModal, setShowNotifModal] = useState(false);
+            const [pendingEditRecordId, setPendingEditRecordId] = useState(null);
 
             useEffect(() => {
                 if (darkMode) { document.body.classList.remove('light-mode'); }
@@ -440,7 +441,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.2</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.3</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -518,7 +519,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.2</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.3</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -538,7 +539,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.2</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.3</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -576,7 +577,7 @@
 
                     {/* ── 메인 콘텐츠 ── */}
                     <main className="main-area lm-content">
-                        {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} />}
+                        {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} pendingEditRecordId={pendingEditRecordId} clearPendingEdit={()=>setPendingEditRecordId(null)} />}
                         {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allRecords={records} />}
                         {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} config={config} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} />}
@@ -631,17 +632,32 @@
                                 ) : (
                                     <div className="space-y-3">
                                         {notifications.map(n => (
-                                            <div key={n.id} onClick={()=>!n.read && markNotifRead(n.id)}
-                                                className={`p-4 rounded-2xl border cursor-pointer transition-all ${n.read ? 'bg-slate-950/40 border-slate-800 opacity-60' : 'bg-blue-900/20 border-blue-700/40 hover:bg-blue-900/30'}`}>
-                                                <div className="flex items-start gap-3">
-                                                    <div className={`p-2 rounded-xl flex-shrink-0 ${n.type==='hold' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                            <div key={n.id}
+                                                onClick={() => {
+                                                    if (!n.read) markNotifRead(n.id);
+                                                    if (n.recordId && n.type === 'hold') {
+                                                        setShowNotifModal(false);
+                                                        setActiveTab('dashboard');
+                                                        setPendingEditRecordId(n.recordId);
+                                                    }
+                                                }}
+                                                className={`rounded-2xl border transition-all ${n.recordId && n.type === 'hold' ? 'cursor-pointer hover:border-red-600/50' : ''} ${n.read ? 'bg-slate-950/40 border-slate-800 opacity-60' : 'bg-red-900/10 border-red-700/30'}`}>
+                                                <div className="p-4 flex items-start gap-3">
+                                                    <div className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${n.type==='hold' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                                         <Icon name={n.type==='hold' ? 'alert-triangle' : 'message-circle'} size={16}/>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="font-heavy text-sm leading-snug">{n.message}</p>
-                                                        <p className="text-[10px] text-slate-500 mt-1 font-bold">{formatFullDateTime(n.createdAt)}</p>
+                                                        <p className="font-heavy text-sm leading-relaxed break-words whitespace-pre-wrap text-white">{n.message}</p>
+                                                        <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
+                                                            <p className="text-[10px] text-slate-500 font-bold">{formatFullDateTime(n.createdAt)}</p>
+                                                            {n.recordId && n.type === 'hold' && (
+                                                                <span className="text-[11px] text-red-300 font-heavy bg-red-500/15 border border-red-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                                                                    <Icon name="edit-2" size={11}/> 탭하여 장부 수정하기
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    {!n.read && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></span>}
+                                                    {!n.read && <span className="w-2 h-2 bg-red-400 rounded-full flex-shrink-0 mt-1.5"></span>}
                                                 </div>
                                             </div>
                                         ))}
@@ -663,7 +679,7 @@
         );
 
         // --- Dashboard View ---
-        function DashboardView({ user, records, config, showToast, weekRange, notifications, onOpenNotif }) {
+        function DashboardView({ user, records, config, showToast, weekRange, notifications, onOpenNotif, pendingEditRecordId, clearPendingEdit }) {
             const items = getEffectiveItems(config);
             const itemKeys = Object.keys(items);
             const initialForm = { buyerSn: '', buyerNickname: '', note: '', ...Object.fromEntries(itemKeys.map(k=>[k,0])) };
@@ -673,6 +689,22 @@
             const [showGuide, setShowGuide] = useState(false);
             const [editing, setEditing] = useState(null);
             const [reason, setReason] = useState("");
+
+            // 알림에서 넘어온 보류 장부 — 주간 필터 무관하게 전체에서 찾아 수정 모달 오픈
+            useEffect(() => {
+                if (pendingEditRecordId && records.length > 0) {
+                    const rec = records.find(r => r.id === pendingEditRecordId);
+                    if (rec && rec.sellerUid === user.uid) {
+                        // 감사완료(booked)가 아닌 건만 수정 가능
+                        if (!(rec.status === 'completed' && !rec.auditReason)) {
+                            setEditing({...rec});
+                        } else {
+                            showToast("이미 감사 완료된 건은 수정할 수 없습니다.");
+                        }
+                        clearPendingEdit();
+                    }
+                }
+            }, [pendingEditRecordId, records]);
 
             const total = useMemo(() => itemKeys.reduce((s, k) => s + (parseInt(form[k]) || 0) * (items[k].price || 0), 0), [form, items]);
             const isExceeded = useMemo(() => itemKeys.some(k => (parseInt(form[k]) || 0) > (items[k].max || 9999)), [form, items]);
@@ -750,18 +782,18 @@
                     {/* 알림 미리보기 카드 */}
                     {notifications && notifications.filter(n=>!n.read).length > 0 && (
                         <div onClick={onOpenNotif} className="card cursor-pointer border-blue-700/40 bg-blue-900/10 hover:bg-blue-900/20 transition-all shadow-lg">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-blue-500/20 p-2.5 rounded-xl relative">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="bg-blue-500/20 p-2.5 rounded-xl relative flex-shrink-0">
                                         <Icon name="bell" className="text-blue-400" size={20}/>
                                         <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{notifications.filter(n=>!n.read).length}</span>
                                     </div>
-                                    <div>
-                                        <p className="text-blue-400 text-xs font-heavy uppercase tracking-widest mb-0.5">새 알림</p>
-                                        <p className="text-sm font-heavy text-white">{notifications.filter(n=>!n.read)[0]?.message?.slice(0,40)}...</p>
+                                    <div className="min-w-0">
+                                        <p className="text-blue-400 text-xs font-heavy uppercase tracking-widest mb-0.5">새 알림 {notifications.filter(n=>!n.read).length}건</p>
+                                        <p className="text-sm font-heavy text-white truncate">{notifications.filter(n=>!n.read)[0]?.message}</p>
                                     </div>
                                 </div>
-                                <Icon name="chevron-right" className="text-blue-600" size={20}/>
+                                <Icon name="chevron-right" className="text-blue-600 flex-shrink-0" size={20}/>
                             </div>
                         </div>
                     )}
@@ -1590,7 +1622,7 @@
                                     if(!reasonText.trim()) return alert("사유를 입력해 주세요.");
                                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', rsnModal.id), { status:'pending', auditReason:reasonText, penaltyPoints:penaltyInput, auditedAt:new Date().toISOString(), auditorName:user.nickname });
                                     if (sendNotification) {
-                                        const msg = `📋 장부가 보류 처리되었습니다. 사유: ${reasonText}${penaltyInput > 0 ? ` / 경고 ${penaltyInput}점 부여` : ''}`;
+                                        const msg = `📋 장부 보류 처리\n구매자: ${rsnModal.buyerNickname} (#${rsnModal.buyerSn})\n매출: ${formatKRW(rsnModal.totalAmount)}\n\n[보류 사유]\n${reasonText}${penaltyInput > 0 ? `\n\n⚠️ 경고 ${penaltyInput}점 부여` : ''}`;
                                         await sendNotification(rsnModal.sellerUid, rsnModal.sellerNickname, 'hold', msg, rsnModal.id);
                                     }
                                     setRsnModal(null); setReasonText(""); setPenaltyInput(0); showToast("보류 및 경고 처리되었습니다.");
