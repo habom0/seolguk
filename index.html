@@ -228,12 +228,23 @@
             parachute: { label: '낙하산',     max: 20,  emoji: '🪂', price: 5000000    },
             elixir:    { label: '파워 엘릭서', max: 200, emoji: '🏺', price: 4000000    },
         };
+        // 기본 순서: 풀패키지, 꿀젤리, 꿀스틱, 진통제, 낙하산, 엘릭서
+        const DEFAULT_ORDER = ['fullpack', 'honeyjelly', 'honeystick', 'painkiller', 'parachute', 'elixir'];
+
         // 하위 호환 유지용 상수 (직접 참조하는 곳 제거 후 삭제 가능)
         const PRICES    = Object.fromEntries(Object.entries(DEFAULT_ITEMS).map(([k,v])=>[k, v.price]));
         const ITEM_INFO = Object.fromEntries(Object.entries(DEFAULT_ITEMS).map(([k,v])=>[k, { label:v.label, max:v.max, emoji:v.emoji, desc:'' }]));
 
-        // config.items 가 있으면 그걸 쓰고, 없으면 DEFAULT_ITEMS 사용
-        const getEffectiveItems = (config) => config?.items || DEFAULT_ITEMS;
+        // items 반환 — itemOrder 배열이 있으면 그 순서 사용, 없으면 DEFAULT_ORDER
+        const getEffectiveItems = (config) => {
+            const items = config?.items || DEFAULT_ITEMS;
+            const order = config?.itemOrder || DEFAULT_ORDER;
+            // order 배열 순서대로 정렬된 객체 반환 (누락된 키는 뒤에 추가)
+            const allKeys = [...order.filter(k => items[k]), ...Object.keys(items).filter(k => !order.includes(k))];
+            const sorted = {};
+            allKeys.forEach(k => { if (items[k]) sorted[k] = items[k]; });
+            return sorted;
+        };
         const ROLES = { PENDING: '가입신청', EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자', EVENT: '이벤트용' };
         // 실제 활동 가능한 역할 (가입신청·이벤트용 제외)
         const ACTIVE_ROLES = ['사원', '감사팀', '관리자'];
@@ -671,14 +682,17 @@
             const weekTotalAmount = useMemo(() => myWeekRecords.reduce((s, r) => s + (r.totalAmount || 0), 0), [myWeekRecords]);
 
             const copyAmount = () => {
-                const amount = String(total * 0.5);
-                const el = document.createElement('textarea');
-                el.value = amount;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
+                const amount = String(Math.round(total * 0.5));
+                navigator.clipboard ? navigator.clipboard.writeText(amount) : (() => { const el = document.createElement('textarea'); el.value = amount; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); })();
                 showToast("입금액이 복사되었습니다.");
+            };
+
+            const copyReason = () => {
+                // 구매품목 요약 생성
+                const itemSummary = itemKeys.filter(k => parseInt(form[k]) > 0).map(k => `${items[k].label}${form[k]}개`).join(', ');
+                const text = `${form.buyerSn}/${form.buyerNickname}/${itemSummary || '품목미입력'}`;
+                navigator.clipboard ? navigator.clipboard.writeText(text) : (() => { const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); })();
+                showToast("입금 사유가 복사되었습니다.");
             };
 
             const buyerSnRef = React.useRef(null);
@@ -692,14 +706,8 @@
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', recId), newRec);
                 setForm(initialForm);
                 showToast("장부가 제출되었습니다.");
-                // 한글 IME 유지: 구매자 고유번호로 포커스 후 닉네임으로 이동
-                setTimeout(() => {
-                    if (buyerSnRef.current) {
-                        buyerSnRef.current.focus();
-                        // 닉네임 필드가 한글 입력을 받아야 하므로 곧바로 포커스 이동
-                        setTimeout(() => { if (buyerNickRef.current) buyerNickRef.current.focus(); }, 30);
-                    }
-                }, 50);
+                // 닉네임 필드로 바로 포커스 — 한글 상태 유지
+                setTimeout(() => { if (buyerNickRef.current) buyerNickRef.current.focus(); }, 80);
             };
 
             const handleEditSave = async (e) => {
@@ -777,19 +785,27 @@
                             <div className="lg:col-span-3 space-y-6 font-bold">
                                 <div className="grid grid-cols-2 gap-4 font-bold">
                                     <div>
-                                        <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
-                                        <input ref={buyerSnRef} inputMode="numeric" className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value})} required placeholder="0000" />
+                                        <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 닉네임</label>
+                                        <input ref={buyerNickRef} className="input-base font-bold text-lg" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" autoComplete="off" />
                                     </div>
                                     <div>
-                                        <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 닉네임</label>
-                                        <input ref={buyerNickRef} lang="ko" className="input-base font-bold text-lg" value={form.buyerNickname} onChange={e=>setForm({...form, buyerNickname: e.target.value})} required placeholder="닉네임" />
+                                        <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
+                                        <input ref={buyerSnRef} type="text" inputMode="numeric" pattern="[0-9]*" className="input-base font-bold text-lg" value={form.buyerSn} onChange={e=>setForm({...form, buyerSn: e.target.value.replace(/[^0-9]/g,'')})} required placeholder="0000" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {itemKeys.map(k => (
                                         <div key={k}>
                                             <label className="text-base text-slate-300 mb-2 flex items-center gap-1 font-heavy ml-1">{items[k].emoji} {items[k].label}</label>
-                                            <input type="number" className={`input-base font-heavy text-xl ${(parseInt(form[k]) > items[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`} value={form[k]||""} onChange={e=>setForm({...form, [k]: e.target.value})} placeholder={`최대 ${items[k].max}`} />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                className={`input-base font-heavy text-xl ${(parseInt(form[k]) > items[k].max) ? 'border-red-500 ring-2 ring-red-500/20 text-red-500' : ''}`}
+                                                value={form[k]||""}
+                                                onChange={e => { const v = e.target.value.replace(/[^0-9]/g,''); setForm({...form, [k]: v}); }}
+                                                placeholder={`최대 ${items[k].max}`}
+                                            />
                                         </div>
                                     ))}
                                 </div>
@@ -804,7 +820,12 @@
                                     <div className="h-px bg-slate-900 font-heavy"></div>
                                     <div className="flex justify-between items-end font-heavy"><span className="text-blue-500 font-heavy text-lg">공계 입금액(50%)</span><div className="text-right font-heavy"><p className="text-3xl text-blue-400 font-heavy">{formatKRW(total * 0.5)}</p></div></div>
                                     <button type="button" onClick={copyAmount} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-sm transition-all border border-blue-500/20 font-bold">
-                                        <Icon name="copy" size={16}/> 숫자만 복사 (콤마 제외)
+                                        <Icon name="copy" size={16}/> 금액 복사 (콤마 제외)
+                                    </button>
+                                    <button type="button" onClick={copyReason}
+                                        disabled={!form.buyerNickname && !form.buyerSn}
+                                        className="w-full flex items-center justify-center gap-2 py-3 bg-green-600/10 hover:bg-green-600/20 text-green-400 rounded-xl text-sm transition-all border border-green-500/20 font-bold disabled:opacity-30">
+                                        <Icon name="clipboard-copy" size={16}/> 입금 사유 복사
                                     </button>
                                 </div>
                                 {isExceeded && <p className="text-red-500 text-center text-sm font-bold animate-bounce mt-4">⚠️ 최대 수량 초과!</p>}
@@ -1976,18 +1997,21 @@
             };
 
             const [itemDraft, setItemDraft] = useState(null); // 편집 중인 품목 초안
+            const [itemOrder, setItemOrder] = useState([]); // 품목 순서
             const [itemSaving, setItemSaving] = useState(false);
 
             // 편집 초안 초기화 (config.items 변경 시 동기화)
             useEffect(() => {
-                setItemDraft(JSON.parse(JSON.stringify(getEffectiveItems(config))));
-            }, [config.items]);
+                const eff = getEffectiveItems(config);
+                setItemDraft(JSON.parse(JSON.stringify(eff)));
+                setItemOrder(Object.keys(eff));
+            }, [config.items, config.itemOrder]);
 
             const saveItems = async () => {
                 if (!itemDraft) return;
                 setItemSaving(true);
                 const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
-                await updateDoc(configDoc, { items: itemDraft });
+                await updateDoc(configDoc, { items: itemDraft, itemOrder: itemOrder });
                 setItemSaving(false);
                 showToast("품목 설정이 저장되었습니다.");
             };
@@ -1995,8 +2019,17 @@
             const resetItemsToDefault = async () => {
                 if (!window.confirm("품목 설정을 기본값으로 초기화하시겠습니까?")) return;
                 const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
-                await updateDoc(configDoc, { items: DEFAULT_ITEMS });
+                await updateDoc(configDoc, { items: DEFAULT_ITEMS, itemOrder: DEFAULT_ORDER });
                 showToast("품목 설정이 기본값으로 초기화되었습니다.");
+            };
+
+            const moveItem = (key, dir) => {
+                const idx = itemOrder.indexOf(key);
+                const newOrder = [...itemOrder];
+                const swap = idx + dir;
+                if (swap < 0 || swap >= newOrder.length) return;
+                [newOrder[idx], newOrder[swap]] = [newOrder[swap], newOrder[idx]];
+                setItemOrder(newOrder);
             };
 
             const saveWeekStartDay = async (day) => {
@@ -2071,14 +2104,26 @@
                         <div className="space-y-3">
                             {/* 헤더 */}
                             <div className="grid grid-cols-12 gap-2 px-1">
+                                <div className="col-span-1 text-[10px] text-slate-600 uppercase font-heavy text-center">순서</div>
                                 <div className="col-span-1 text-[10px] text-slate-600 uppercase font-heavy text-center">아이콘</div>
                                 <div className="col-span-4 text-[10px] text-slate-600 uppercase font-heavy">품목명</div>
-                                <div className="col-span-3 text-[10px] text-slate-600 uppercase font-heavy">일일 최대 수량</div>
+                                <div className="col-span-2 text-[10px] text-slate-600 uppercase font-heavy">일일 최대</div>
                                 <div className="col-span-4 text-[10px] text-slate-600 uppercase font-heavy">단가 (원)</div>
                             </div>
 
-                            {Object.keys(itemDraft).map(k => (
+                            {itemOrder.filter(k => itemDraft[k]).map((k, idx) => (
                                 <div key={k} className="grid grid-cols-12 gap-2 items-center bg-slate-950 border border-slate-800 rounded-2xl p-3 hover:border-slate-700 transition-all">
+                                    {/* 순서 버튼 */}
+                                    <div className="col-span-1 flex flex-col items-center gap-0.5">
+                                        <button type="button" onClick={()=>moveItem(k,-1)} disabled={idx===0}
+                                            className="p-1 rounded text-slate-600 hover:text-white disabled:opacity-20 transition-colors">
+                                            <Icon name="chevron-up" size={14}/>
+                                        </button>
+                                        <button type="button" onClick={()=>moveItem(k,1)} disabled={idx===itemOrder.length-1}
+                                            className="p-1 rounded text-slate-600 hover:text-white disabled:opacity-20 transition-colors">
+                                            <Icon name="chevron-down" size={14}/>
+                                        </button>
+                                    </div>
                                     {/* 이모지 */}
                                     <div className="col-span-1 text-center">
                                         <input
@@ -2100,28 +2145,29 @@
                                         />
                                     </div>
                                     {/* 최대 수량 */}
-                                    <div className="col-span-3">
+                                    <div className="col-span-2">
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={itemDraft[k].max}
-                                            onChange={e => updateItemField(k, 'max', parseInt(e.target.value)||1)}
+                                            onChange={e => updateItemField(k, 'max', parseInt(e.target.value.replace(/[^0-9]/g,''))||1)}
                                             className="input-base py-2 text-sm font-heavy text-center"
-                                            min="1"
                                         />
                                     </div>
                                     {/* 단가 */}
                                     <div className="col-span-4">
                                         <div className="relative">
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 value={itemDraft[k].price}
-                                                onChange={e => updateItemField(k, 'price', parseInt(e.target.value)||0)}
-                                                className="input-base py-2 text-sm font-heavy pr-8"
-                                                min="0"
+                                                onChange={e => updateItemField(k, 'price', parseInt(e.target.value.replace(/[^0-9]/g,''))||0)}
+                                                className="input-base py-2 text-sm font-heavy pr-16"
                                             />
-                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">₩</span>
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-blue-400 font-bold pointer-events-none whitespace-nowrap">
+                                                {formatKRW(itemDraft[k].price)}
+                                            </span>
                                         </div>
-                                        <p className="text-[9px] text-blue-400 mt-1 pl-1 font-bold">{formatKRW(itemDraft[k].price)}</p>
                                     </div>
                                 </div>
                             ))}
