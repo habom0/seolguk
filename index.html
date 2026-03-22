@@ -61,6 +61,16 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; overflow-y: auto; }
         .modal-overlay > div { max-height: 90vh; overflow-y: auto; }
 
+        /* ══ 커스텀 스크롤바 ══ */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .modal-overlay > div::-webkit-scrollbar { width: 3px; }
+        .modal-overlay > div::-webkit-scrollbar-track { background: transparent; }
+        .modal-overlay > div::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 99px; opacity: 0.5; }
+        .modal-overlay > div::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+
         /* ══ Layout ══ */
         .app-shell { display: flex; min-height: 100vh; }
         .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; z-index: 40; }
