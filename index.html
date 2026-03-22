@@ -1229,9 +1229,9 @@
             }, [allRecords, range, ledgerTab, eventUids]);
 
             // 통계
-            const todayTotal   = useMemo(() => todayAll.filter(r=>!eventUids.has(r.sellerUid)).reduce((s,r)=>s+(r.totalAmount||0),0), [todayAll, eventUids]);
-            const weekTotal    = useMemo(() => allRecords.filter(r=>{ const d=new Date(r.timestamp); return d>=range.start&&d<=range.end&&!eventUids.has(r.sellerUid); }).reduce((s,r)=>s+(r.totalAmount||0),0), [allRecords,range,eventUids]);
-            const monthTotal   = useMemo(() => { const ms=new Date(new Date().getFullYear(),new Date().getMonth(),1); return allRecords.filter(r=>new Date(r.timestamp)>=ms&&!eventUids.has(r.sellerUid)).reduce((s,r)=>s+(r.totalAmount||0),0); }, [allRecords,eventUids]);
+            const todayTotal   = useMemo(() => todayAll.reduce((s,r)=>s+(r.totalAmount||0),0), [todayAll]);
+            const weekTotal    = useMemo(() => allRecords.filter(r=>{ const d=new Date(r.timestamp); return d>=range.start&&d<=range.end; }).reduce((s,r)=>s+(r.totalAmount||0),0), [allRecords,range]);
+            const monthTotal   = useMemo(() => { const ms=new Date(new Date().getFullYear(),new Date().getMonth(),1); return allRecords.filter(r=>new Date(r.timestamp)>=ms).reduce((s,r)=>s+(r.totalAmount||0),0); }, [allRecords]);
 
             // 30일 차트
             const chartData = useMemo(() => {
@@ -1239,7 +1239,7 @@
                 return Array.from({length:30},(_,i)=>{
                     const d = new Date(today); d.setDate(today.getDate()-(29-i));
                     const next = new Date(d); next.setDate(d.getDate()+1);
-                    const amount = allRecords.filter(r=>{ const rd=new Date(r.timestamp); return rd>=d&&rd<next&&!eventUids.has(r.sellerUid); }).reduce((s,r)=>s+(r.totalAmount||0),0);
+                    const amount = allRecords.filter(r=>{ const rd=new Date(r.timestamp); return rd>=d&&rd<next; }).reduce((s,r)=>s+(r.totalAmount||0),0);
                     const mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
                     return { label:`${mm}/${dd}`, fullLabel:`${String(d.getFullYear()).slice(2)}-${mm}-${dd}`, amount, eok:Math.floor(amount/100000000), isToday:i===29 };
                 });
@@ -1270,7 +1270,7 @@
                     {/* ── 2열 통계 카드 ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="card shadow-xl space-y-3">
-                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="book-open" className="text-green-400" size={17}/> 장부 통계 <span className="text-[10px] text-slate-600 font-bold">(이벤트 제외)</span></h3>
+                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="book-open" className="text-green-400" size={17}/> 장부 통계</h3>
                             {[
                                 { label:'오늘 매출',    value: formatKRW(todayTotal),  color:'text-green-400' },
                                 { label:'이번 주 매출', value: formatKRW(weekTotal),   color:'text-white'     },
