@@ -455,7 +455,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.2.0</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.2.3</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -533,7 +533,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.2.0</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.2.3</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -553,7 +553,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.2.0</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.2.3</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -1076,16 +1076,17 @@
                                 {/* 유의사항 — 최상단 */}
                                 <div className="bg-red-900/20 border-2 border-red-600/40 rounded-2xl p-5 space-y-3">
                                     <h4 className="text-lg font-heavy text-red-400 flex items-center gap-2"><Icon name="alert-triangle" size={20}/> 유의사항</h4>
-                                    {[
-                                        '중복 판매 확인 시 즉시 회수하고 감사팀에 보고하세요.',
-                                        '장부 누락 또는 오기입 시 내부 경고가 부여될 수 있습니다.',
+                                    {((config.guideContent?.warnings) || [
+                                        '판매 전 반드시 전체 장부 > 오늘의 판매건에서 해당 구매자의 당일 구매 이력을 검색하여 중복 여부를 확인하세요.',
+                                        '장부를 누락한 경우, 이후 발생하는 중복 구매 사고에 대한 경고 및 사후 처리는 장부를 누락한 사원이 책임집니다.',
+                                        '중복 판매가 확인된 경우 즉시 회수하고 감사팀에 보고하세요.',
                                         '구매자 고유번호와 닉네임을 반드시 정확하게 확인 후 기재하세요.',
                                         '당일 장부는 반드시 당일 제출해야 합니다.',
                                         '처리 방법을 모르거나 애매한 상황은 임의 처리하지 말고 반드시 감사팀에 문의 후 처리하세요.',
-                                    ].map((text,i) => (
+                                    ]).map((text, i) => (
                                         <div key={i} className="flex items-start gap-2">
                                             <span className="text-red-400 mt-0.5 flex-shrink-0">•</span>
-                                            <p className="text-slate-200 text-base leading-relaxed">{text}</p>
+                                            <p className={`text-base leading-relaxed ${i < 2 ? 'text-white font-heavy' : 'text-slate-200'}`}>{text}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -1093,17 +1094,18 @@
                                 {/* 장부 작성 순서 */}
                                 <div className="bg-blue-900/15 border border-blue-700/30 rounded-2xl p-5 space-y-3">
                                     <h4 className="text-lg font-heavy text-blue-400 flex items-center gap-2"><Icon name="list-ordered" size={20}/> 장부 작성 순서</h4>
-                                    {[
+                                    {((config.guideContent?.steps) || [
+                                        '전체 장부 > 오늘의 판매건에서 구매자 고번 또는 닉네임으로 중복 구매 여부를 먼저 확인합니다.',
                                         '구매자 닉네임과 고유번호를 입력합니다.',
                                         '판매한 품목의 수량을 각 칸에 입력합니다.',
                                         '특이사항이 있을 경우 비고란에 기재합니다.',
                                         '우측에서 공계 입금액(50%)을 확인합니다.',
                                         '금액 복사 버튼으로 입금액을, 사유 복사 버튼으로 입금 사유를 복사합니다.',
                                         '공동계좌에 입금 후 장부 제출하기를 눌러 등록합니다.',
-                                    ].map((text,i) => (
-                                        <div key={i} className="flex items-start gap-3">
-                                            <span className="text-blue-400 font-heavy text-base flex-shrink-0">{'①②③④⑤⑥'[i]}</span>
-                                            <p className="text-slate-200 text-base leading-relaxed">{text}</p>
+                                    ]).map((text, i) => (
+                                        <div key={i} className={`flex items-start gap-3 ${i===0 ? 'bg-blue-900/20 border border-blue-700/30 rounded-xl p-3 -mx-1' : ''}`}>
+                                            <span className="text-blue-400 font-heavy text-base flex-shrink-0">{'①②③④⑤⑥⑦⑧⑨'[i]}</span>
+                                            <p className={`text-base leading-relaxed ${i===0 ? 'text-blue-200 font-heavy' : 'text-slate-200'}`}>{text}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -1115,7 +1117,7 @@
                                         '대시보드 하단 "이번 주 나의 판매 내역"에서 수정할 건의 ✏️ 버튼을 클릭합니다.',
                                         '수정이 필요한 수량을 변경하고 수정 사유를 필수로 입력합니다.',
                                         '재제출하면 해당 건은 자동으로 감사대기 상태로 돌아가 재감사가 진행됩니다.',
-                                    ].map((text,i) => (
+                                    ].map((text, i) => (
                                         <div key={i} className="flex items-start gap-3">
                                             <span className="text-indigo-400 font-heavy text-base flex-shrink-0">{'①②③'[i]}</span>
                                             <p className="text-slate-200 text-base leading-relaxed">{text}</p>
@@ -1169,8 +1171,13 @@
             const items = getEffectiveItems(config);
             const itemKeys = Object.keys(items);
 
+            const [searchDraft, setSearchDraft] = useState('');
             const [searchQuery, setSearchQuery] = useState('');
             const [ledgerTab, setLedgerTab] = useState('all'); // all / employee / event
+
+            const handleSearch = (e) => {
+                if (e.key === 'Enter') setSearchQuery(searchDraft.trim());
+            };
 
             // 오늘 범위
             const todayStart = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
@@ -1316,11 +1323,17 @@
                                 <span className="text-[10px] text-slate-500 font-bold">{todayFiltered.length}건 · {formatKRW(todayFiltered.reduce((s,r)=>s+(r.totalAmount||0),0))}</span>
                             </div>
                             {/* 중복구매 검색 */}
-                            <div className="relative w-full sm:w-64">
-                                <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
-                                <input type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
-                                    placeholder="구매자 닉네임 또는 고번 검색"
-                                    className="input-base pl-8 py-2 text-xs w-full"/>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <div className="relative flex-1 sm:w-56">
+                                    <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
+                                    <input type="text" value={searchDraft} onChange={e=>setSearchDraft(e.target.value)} onKeyDown={handleSearch}
+                                        placeholder="구매자 닉네임 또는 고번"
+                                        className="input-base pl-8 py-2 text-xs w-full"/>
+                                </div>
+                                <button onClick={()=>setSearchQuery(searchDraft.trim())} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-heavy flex-shrink-0 flex items-center gap-1">
+                                    <Icon name="search" size={13}/> 검색
+                                </button>
+                                {searchQuery && <button onClick={()=>{setSearchDraft('');setSearchQuery('');}} className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl flex-shrink-0"><Icon name="x" size={13}/></button>}
                             </div>
                         </div>
 
@@ -1797,7 +1810,17 @@
                                         <button onClick={async ()=>{ await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', viewItem.id), { status:'pending', auditorName:user.nickname }); setViewItem(null); showToast("보류 상태로 전환됨"); }} className="flex-1 bg-red-900/40 hover:bg-red-600 text-red-500 hover:text-white py-6 rounded-2xl font-heavy text-xl border border-red-600/30 transition-all">감사 보류로 전환</button>
                                     </div>
                                 </div>
-                                <div className="border-t border-red-900/30 pt-4">
+                                <div className="border-t border-red-900/30 pt-4 space-y-3">
+                                    {/* 보류 후 완료건 → 일반 완료로 복구 */}
+                                    {viewItem.status === 'completed' && viewItem.auditReason && (
+                                        <button onClick={async ()=>{
+                                            if(!window.confirm('보류 기록을 제거하고 일반 감사완료 건으로 복구하시겠습니까?')) return;
+                                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', viewItem.id), { auditReason:'', auditMemo:'', penaltyPoints:0 });
+                                            setViewItem(null); showToast("일반 감사완료 건으로 복구되었습니다.");
+                                        }} className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-900/20 hover:bg-green-600/30 border border-green-700/30 text-green-400 hover:text-green-200 rounded-2xl font-heavy text-base transition-all">
+                                            <Icon name="rotate-ccw" size={17}/> 보류 해제 — 일반 완료건으로 복구
+                                        </button>
+                                    )}
                                     <button onClick={()=>setDeleteConfirm(viewItem)} className="w-full flex items-center justify-center gap-2 py-4 bg-red-900/10 hover:bg-red-900/30 border border-red-800/40 text-red-500 hover:text-red-300 rounded-2xl font-heavy text-lg transition-all">
                                         <Icon name="trash-2" size={20}/> 장부 기입건 삭제
                                     </button>
@@ -2275,6 +2298,48 @@
             const isAdmin = currentUser.role === ROLES.ADMIN;
             const [noticeText, setNoticeText] = useState(config.eventNotice || "");
             const [notePlaceholder, setNotePlaceholder] = useState(config.notePlaceholder || "특이사항 기재");
+            const [adminTab, setAdminTab] = useState('settings'); // settings / members
+            const [memberFilter, setMemberFilter] = useState('all');
+
+            // 필독 모달 내용 편집
+            const DEFAULT_GUIDE = {
+                warnings: [
+                    '판매 전 반드시 전체 장부 > 오늘의 판매건에서 해당 구매자의 당일 구매 이력을 검색하여 중복 여부를 확인하세요.',
+                    '장부를 누락한 경우, 이후 발생하는 중복 구매 사고에 대한 경고 및 사후 처리는 장부를 누락한 사원이 책임집니다.',
+                    '중복 판매가 확인된 경우 즉시 회수하고 감사팀에 보고하세요.',
+                    '구매자 고유번호와 닉네임을 반드시 정확하게 확인 후 기재하세요.',
+                    '당일 장부는 반드시 당일 제출해야 합니다.',
+                    '처리 방법을 모르거나 애매한 상황은 임의 처리하지 말고 반드시 감사팀에 문의 후 처리하세요.',
+                ],
+                steps: [
+                    '전체 장부 > 오늘의 판매건에서 구매자 고번 또는 닉네임으로 중복 구매 여부를 먼저 확인합니다.',
+                    '구매자 닉네임과 고유번호를 입력합니다.',
+                    '판매한 품목의 수량을 각 칸에 입력합니다.',
+                    '특이사항이 있을 경우 비고란에 기재합니다.',
+                    '우측에서 공계 입금액(50%)을 확인합니다.',
+                    '금액 복사 버튼으로 입금액을, 사유 복사 버튼으로 입금 사유를 복사합니다.',
+                    '공동계좌에 입금 후 장부 제출하기를 눌러 등록합니다.',
+                ],
+            };
+            const savedGuide = config.guideContent || DEFAULT_GUIDE;
+            const [guideWarnings, setGuideWarnings] = useState(savedGuide.warnings.join('\n'));
+            const [guideSteps, setGuideSteps] = useState(savedGuide.steps.join('\n'));
+            useEffect(() => {
+                const g = config.guideContent || DEFAULT_GUIDE;
+                setGuideWarnings(g.warnings.join('\n'));
+                setGuideSteps(g.steps.join('\n'));
+            }, [config.guideContent]);
+
+            const saveGuideContent = async () => {
+                const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+                await updateDoc(configDoc, {
+                    guideContent: {
+                        warnings: guideWarnings.split('\n').map(s=>s.trim()).filter(Boolean),
+                        steps: guideSteps.split('\n').map(s=>s.trim()).filter(Boolean),
+                    }
+                });
+                showToast("장부 작성 방법 안내가 저장되었습니다.");
+            };
 
             useEffect(() => { setNoticeText(config.eventNotice || ""); }, [config.eventNotice]);
             useEffect(() => { setNotePlaceholder(config.notePlaceholder || "특이사항 기재"); }, [config.notePlaceholder]);
@@ -2355,37 +2420,42 @@
 
 
             return (
-                <div className="space-y-10 animate-fade-in font-bold">
+                <div className="space-y-6 animate-fade-in font-bold">
 
-                    {/* 메인 공지사항 관리 */}
-                    <section className="card shadow-2xl space-y-4">
-                        <h2 className="text-xl text-white flex items-center gap-3 font-heavy"><Icon name="megaphone" className="text-blue-400"/> 메인 공지사항 관리</h2>
-                        <textarea
-                            className="input-base h-28 font-bold resize-none"
-                            value={noticeText}
-                            onChange={e=>setNoticeText(e.target.value)}
-                            placeholder="대시보드 상단에 표시할 공지사항을 입력하세요..."
-                        />
-                        <div className="flex justify-end">
-                            <button onClick={saveNotice} className="btn btn-blue px-8 py-3 font-heavy shadow-lg">반영하기</button>
-                        </div>
-                    </section>
+                    {/* 상단 탭 */}
+                    <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800 w-fit">
+                        {[
+                            { k:'settings', icon:'settings', label:'시스템 설정' },
+                            { k:'members',  icon:'users',    label:'사원 명단' },
+                        ].map(t => (
+                            <button key={t.k} onClick={()=>setAdminTab(t.k)}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-heavy transition-all ${adminTab===t.k ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <Icon name={t.icon} size={15}/> {t.label}
+                            </button>
+                        ))}
+                    </div>
 
-                    {/* 주간 정산 기준 요일 설정 */}
-                    <section className="card shadow-2xl space-y-4">
-                        <h2 className="text-xl text-white flex items-center gap-3 font-heavy"><Icon name="calendar" className="text-indigo-400"/> 주간 정산 기준 요일 설정</h2>
-                        <div className="flex flex-wrap gap-3">
-                            {WEEK_DAYS.map((label, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => saveWeekStartDay(idx)}
-                                    className={`px-5 py-3 rounded-2xl font-heavy text-sm transition-all ${config.weekStartDay === idx ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}
-                                >
-                                    매주 {label}
-                                </button>
-                            ))}
+                    {adminTab === 'settings' && (<>
+
+                    {/* 공지사항 + 주간요일 — 2열 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="card shadow-2xl space-y-3">
+                            <h2 className="text-base text-white flex items-center gap-2 font-heavy"><Icon name="megaphone" className="text-blue-400" size={18}/> 메인 공지사항</h2>
+                            <input type="text" className="input-base font-bold" value={noticeText} onChange={e=>setNoticeText(e.target.value)} placeholder="대시보드 상단에 표시할 공지사항..."/>
+                            <button onClick={saveNotice} className="btn btn-blue w-full py-2.5 text-sm font-heavy">반영하기</button>
                         </div>
-                    </section>
+                        <div className="card shadow-2xl space-y-3">
+                            <h2 className="text-base text-white flex items-center gap-2 font-heavy"><Icon name="calendar" className="text-indigo-400" size={18}/> 주간 정산 기준 요일</h2>
+                            <div className="flex flex-wrap gap-2">
+                                {WEEK_DAYS.map((label, idx) => (
+                                    <button key={idx} onClick={() => saveWeekStartDay(idx)}
+                                        className={`px-3 py-2 rounded-xl font-heavy text-xs transition-all ${config.weekStartDay === idx ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
+                                        매주 {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
 
                     {/* 품목 설정 */}
                     <section className="card shadow-2xl space-y-5">
@@ -2394,10 +2464,8 @@
                             <button onClick={resetItemsToDefault} className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-2 font-bold transition-all">기본값 초기화</button>
                         </div>
                         <p className="text-xs text-slate-500 font-bold">품목명, 일일 최대 수량, 가격을 수정합니다. 저장 전에는 적용되지 않습니다.</p>
-
                         {itemDraft && (
                         <div className="space-y-3">
-                            {/* 헤더 */}
                             <div className="grid grid-cols-12 gap-2 px-1">
                                 <div className="col-span-1 text-[10px] text-slate-600 uppercase font-heavy text-center">순서</div>
                                 <div className="col-span-1 text-[10px] text-slate-600 uppercase font-heavy text-center">아이콘</div>
@@ -2405,228 +2473,176 @@
                                 <div className="col-span-2 text-[10px] text-slate-600 uppercase font-heavy">일일 최대</div>
                                 <div className="col-span-4 text-[10px] text-slate-600 uppercase font-heavy">단가 (원)</div>
                             </div>
-
                             {itemOrder.filter(k => itemDraft[k]).map((k, idx) => (
                                 <div key={k} className="grid grid-cols-12 gap-2 items-center bg-slate-950 border border-slate-800 rounded-2xl p-3 hover:border-slate-700 transition-all">
-                                    {/* 순서 버튼 */}
                                     <div className="col-span-1 flex flex-col items-center gap-0.5">
-                                        <button type="button" onClick={()=>moveItem(k,-1)} disabled={idx===0}
-                                            className="p-1 rounded text-slate-600 hover:text-white disabled:opacity-20 transition-colors">
-                                            <Icon name="chevron-up" size={14}/>
-                                        </button>
-                                        <button type="button" onClick={()=>moveItem(k,1)} disabled={idx===itemOrder.length-1}
-                                            className="p-1 rounded text-slate-600 hover:text-white disabled:opacity-20 transition-colors">
-                                            <Icon name="chevron-down" size={14}/>
-                                        </button>
+                                        <button type="button" onClick={()=>moveItem(k,-1)} disabled={idx===0} className="p-1 rounded text-slate-600 hover:text-white disabled:opacity-20 transition-colors"><Icon name="chevron-up" size={14}/></button>
+                                        <button type="button" onClick={()=>moveItem(k,1)} disabled={idx===itemOrder.length-1} className="p-1 rounded text-slate-600 hover:text-white disabled:opacity-20 transition-colors"><Icon name="chevron-down" size={14}/></button>
                                     </div>
-                                    {/* 이모지 */}
                                     <div className="col-span-1 text-center">
-                                        <input
-                                            type="text"
-                                            value={itemDraft[k].emoji}
-                                            onChange={e => updateItemField(k, 'emoji', e.target.value)}
-                                            className="w-10 h-10 text-center text-xl bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-blue-500"
-                                            maxLength={2}
-                                        />
+                                        <input type="text" value={itemDraft[k].emoji} onChange={e => updateItemField(k, 'emoji', e.target.value)} className="w-10 h-10 text-center text-xl bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-blue-500" maxLength={2}/>
                                     </div>
-                                    {/* 품목명 */}
-                                    <div className="col-span-4">
-                                        <input
-                                            type="text"
-                                            value={itemDraft[k].label}
-                                            onChange={e => updateItemField(k, 'label', e.target.value)}
-                                            className="input-base py-2 text-sm font-heavy"
-                                            placeholder="품목명"
-                                        />
-                                    </div>
-                                    {/* 최대 수량 */}
-                                    <div className="col-span-2">
-                                        <input
-                                            type="text"
-                                           
-                                            value={itemDraft[k].max}
-                                            onChange={e => updateItemField(k, 'max', parseInt(e.target.value.replace(/[^0-9]/g,''))||1)}
-                                            className="input-base py-2 text-sm font-heavy text-center"
-                                        />
-                                    </div>
-                                    {/* 단가 */}
+                                    <div className="col-span-4"><input type="text" value={itemDraft[k].label} onChange={e => updateItemField(k, 'label', e.target.value)} className="input-base py-2 text-sm font-heavy" placeholder="품목명"/></div>
+                                    <div className="col-span-2"><input type="text" value={itemDraft[k].max} onChange={e => updateItemField(k, 'max', parseInt(e.target.value.replace(/[^0-9]/g,''))||1)} className="input-base py-2 text-sm font-heavy text-center"/></div>
                                     <div className="col-span-4">
                                         <div className="relative">
-                                            <input
-                                                type="text"
-                                               
-                                                value={itemDraft[k].price}
-                                                onChange={e => updateItemField(k, 'price', parseInt(e.target.value.replace(/[^0-9]/g,''))||0)}
-                                                className="input-base py-2 text-sm font-heavy pr-16"
-                                            />
-                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-blue-400 font-bold pointer-events-none whitespace-nowrap">
-                                                {formatKRW(itemDraft[k].price)}
-                                            </span>
+                                            <input type="text" value={itemDraft[k].price} onChange={e => updateItemField(k, 'price', parseInt(e.target.value.replace(/[^0-9]/g,''))||0)} className="input-base py-2 text-sm font-heavy pr-16"/>
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-blue-400 font-bold pointer-events-none whitespace-nowrap">{formatKRW(itemDraft[k].price)}</span>
                                         </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                         )}
-
-                        <div className="flex justify-end pt-2">
-                            <button
-                                onClick={saveItems}
-                                disabled={itemSaving}
-                                className="btn btn-green px-8 py-3 font-heavy shadow-lg flex items-center gap-2"
-                            >
-                                <Icon name={itemSaving ? 'loader' : 'save'} size={16}/> {itemSaving ? '저장 중...' : '품목 설정 저장'}
+                        {/* 비고란 안내 문구 — 품목설정 안에 통합 */}
+                        <div className="border-t border-slate-800 pt-4 space-y-2">
+                            <label className="text-xs text-slate-500 font-heavy uppercase flex items-center gap-2"><Icon name="message-square" size={14}/> 비고란 안내 문구</label>
+                            <div className="flex gap-3 items-center">
+                                <input type="text" value={notePlaceholder} onChange={e=>setNotePlaceholder(e.target.value)} className="input-base font-bold flex-1 py-2 text-sm" placeholder="특이사항 기재" maxLength={60}/>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-end pt-1">
+                            <button onClick={saveNotePlaceholder} className="btn bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 text-sm font-heavy">비고 문구 저장</button>
+                            <button onClick={saveItems} disabled={itemSaving} className="btn btn-green px-8 py-2.5 font-heavy shadow-lg flex items-center gap-2 text-sm">
+                                <Icon name={itemSaving ? 'loader' : 'save'} size={15}/> {itemSaving ? '저장 중...' : '품목 설정 저장'}
                             </button>
                         </div>
                     </section>
 
-                    {/* 비고란 안내 문구 설정 */}
+                    {/* 필독 모달 내용 편집 */}
                     <section className="card shadow-2xl space-y-4">
-                        <h2 className="text-xl flex items-center gap-3 font-heavy"><Icon name="message-square" className="text-slate-400"/> 비고란 안내 문구</h2>
-                        <p className="text-xs text-slate-500 font-bold">장부 작성 화면의 비고(특이사항) 입력란에 표시되는 안내 문구를 설정합니다.</p>
-                        <div className="flex gap-3 items-center">
-                            <input type="text" value={notePlaceholder} onChange={e=>setNotePlaceholder(e.target.value)}
-                                className="input-base font-bold flex-1" placeholder="특이사항 기재" maxLength={60}/>
-                            <button onClick={saveNotePlaceholder} className="btn btn-blue px-6 py-3 font-heavy flex-shrink-0">저장</button>
+                        <h2 className="text-xl flex items-center gap-3 font-heavy"><Icon name="book-open" className="text-yellow-400"/> 장부 작성 방법 안내 편집</h2>
+                        <p className="text-xs text-slate-500 font-bold">각 항목을 줄바꿈으로 구분하여 입력하세요. 저장 즉시 모든 사원의 필독 모달에 반영됩니다.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs text-red-400 font-heavy uppercase">⚠️ 유의사항 (줄바꿈으로 구분)</label>
+                                <textarea className="input-base font-bold resize-none text-sm" style={{height:'180px'}}
+                                    value={guideWarnings} onChange={e=>setGuideWarnings(e.target.value)}
+                                    placeholder={"유의사항 1줄\n유의사항 2줄\n..."}/>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs text-blue-400 font-heavy uppercase">① 장부 작성 순서 (줄바꿈으로 구분)</label>
+                                <textarea className="input-base font-bold resize-none text-sm" style={{height:'180px'}}
+                                    value={guideSteps} onChange={e=>setGuideSteps(e.target.value)}
+                                    placeholder={"순서 1\n순서 2\n..."}/>
+                            </div>
                         </div>
-                        <p className="text-[10px] text-slate-600 font-bold">미리보기: <span className="text-slate-400">"{notePlaceholder || '특이사항 기재'}"</span></p>
+                        <div className="flex justify-end">
+                            <button onClick={saveGuideContent} className="btn btn-blue px-8 py-2.5 text-sm font-heavy flex items-center gap-2">
+                                <Icon name="save" size={15}/> 저장 및 반영
+                            </button>
+                        </div>
                     </section>
 
-                    {/* 사원 명단 관리 */}
-                    <section className="space-y-5">
-                        <div className="flex items-center justify-between px-2">
-                            <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
-                            {!isAdmin && <span className="text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">읽기 전용 모드</span>}
-                        </div>
+                    </>)}
 
-                        {/* 가입 승인 대기 보드 */}
-                        {(() => {
-                            const pendingUsers = allUsers.filter(u => u.role === ROLES.PENDING);
-                            if (pendingUsers.length === 0) return null;
-                            return (
-                                <div className="card border border-yellow-700/40 bg-yellow-900/10 shadow-xl space-y-3">
-                                    <h3 className="text-base font-heavy flex items-center gap-2 text-yellow-400"><Icon name="clock" size={18}/> 가입 승인 대기 ({pendingUsers.length}명)</h3>
-                                    <div className="space-y-2">
-                                        {pendingUsers.map(u => (
-                                            <div key={u.uid} className="bg-slate-950 border border-yellow-800/30 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-yellow-600/15 rounded-full flex items-center justify-center font-black text-yellow-500 border border-yellow-700/30 text-sm flex-shrink-0">{u.sn.slice(-2)}</div>
-                                                    <div>
-                                                        <p className="text-base font-heavy text-white">{u.nickname} <span className="text-xs text-slate-500 ml-1">#{u.sn}</span></p>
-                                                        <p className="text-xs text-yellow-600 font-bold">가입신청 {formatDate(u.joinDate)}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => isAdmin && updateUser(u.uid, {role: ROLES.EMPLOYEE})}
-                                                        className="px-4 py-2 rounded-xl text-xs font-heavy bg-green-600 hover:bg-green-500 text-white transition-all flex items-center gap-1">
-                                                        <Icon name="check" size={13}/> 사원 승인
-                                                    </button>
-                                                    <button onClick={async () => { if(window.confirm(`${u.nickname}님의 가입을 거절하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid)); }}
-                                                        className="px-4 py-2 rounded-xl text-xs font-heavy bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white border border-red-700/30 transition-all flex items-center gap-1">
-                                                        <Icon name="x" size={13}/> 거절
-                                                    </button>
-                                                </div>
+                    {adminTab === 'members' && (<>
+
+                    {/* 가입 승인 대기 */}
+                    {(() => {
+                        const pendingUsers = allUsers.filter(u => u.role === ROLES.PENDING);
+                        if (pendingUsers.length === 0) return null;
+                        return (
+                            <div className="card border border-yellow-700/40 bg-yellow-900/10 shadow-xl space-y-3">
+                                <h3 className="text-base font-heavy flex items-center gap-2 text-yellow-400"><Icon name="clock" size={18}/> 가입 승인 대기 ({pendingUsers.length}명)</h3>
+                                <div className="space-y-2">
+                                    {pendingUsers.map(u => (
+                                        <div key={u.uid} className="bg-slate-950 border border-yellow-800/30 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-3">
+                                            <div>
+                                                <p className="text-base font-heavy text-white">{u.nickname} <span className="text-xs text-slate-500 ml-1">#{u.sn}</span></p>
+                                                <p className="text-xs text-yellow-600 font-bold">가입신청 {formatDate(u.joinDate)}</p>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
-                        {/* 필터 탭 + 사원 테이블 */}
-                        {(() => {
-                            const [memberFilter, setMemberFilter] = React.useState('all');
-                            const FILTERS = [
-                                { key:'all', label:'전체' },
-                                { key:'사원', label:'사원' },
-                                { key:'감사팀', label:'감사팀' },
-                                { key:'관리자', label:'관리자' },
-                                { key:'이벤트용', label:'이벤트용' },
-                            ];
-                            const filtered = allUsers
-                                .filter(u => u.role !== ROLES.PENDING)
-                                .filter(u => memberFilter === 'all' || u.role === memberFilter)
-                                .sort((a,b) => a.nickname.localeCompare(b.nickname, 'ko'));
-                            return (
-                                <div className="space-y-4">
-                                    <div className="flex flex-wrap items-center gap-2 bg-slate-900 lm-pill-wrap p-1 rounded-xl border border-slate-800 w-fit">
-                                        {FILTERS.map(f => (
-                                            <button key={f.key} onClick={()=>setMemberFilter(f.key)}
-                                                className={`px-4 py-2 rounded-lg text-xs font-heavy transition-all ${memberFilter===f.key ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 lm-pill-inactive'}`}>
-                                                {f.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="card p-0 overflow-hidden shadow-2xl">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left font-heavy">
-                                                <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase tracking-widest">
-                                                    <tr className="border-b border-slate-700">
-                                                        <th className="p-4 whitespace-nowrap">고유번호</th>
-                                                        <th className="p-4 whitespace-nowrap">닉네임 / 가입일</th>
-                                                        <th className="p-4 text-center whitespace-nowrap">비밀번호</th>
-                                                        <th className="p-4 text-center whitespace-nowrap">부여 권한</th>
-                                                        {isAdmin && <th className="p-4 text-right whitespace-nowrap">제명</th>}
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-800 text-white font-heavy">
-                                                    {filtered.map(u => (
-                                                        <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors">
-                                                            <td className="p-4">
-                                                                <div className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 text-center font-mono text-blue-500 text-base shadow-inner w-fit mx-auto">{u.sn}</div>
-                                                            </td>
-                                                            <td className="p-4 whitespace-nowrap">
-                                                                <div className="text-base font-black">{u.nickname}</div>
-                                                                <div className="text-[10px] text-slate-600 mt-0.5">Joined: {formatDate(u.joinDate)}</div>
-                                                            </td>
-                                                            <td className="p-4 text-center">
-                                                                {u.sn === '0000' ? (
-                                                                    <div className="flex items-center justify-center bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner">
-                                                                        <span className="text-base tracking-[0.4em] font-mono text-slate-600">••••</span>
-                                                                        <span className="text-[10px] text-slate-700 ml-2">관리자 전용</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center justify-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-max mx-auto shadow-inner">
-                                                                        <span className="text-base tracking-[0.4em] font-mono text-slate-400">{showPw[u.uid] ? u.password : '****'}</span>
-                                                                        <button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors">
-                                                                            <Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={16}/>
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="p-4 text-center">
-                                                                <div className="flex flex-wrap justify-center gap-1.5 max-w-[340px] mx-auto">
-                                                                    {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN, ROLES.EVENT].map(role => (
-                                                                        <button key={role} onClick={() => isAdmin && updateUser(u.uid, {role})} disabled={!isAdmin}
-                                                                            className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${u.role === role ? getRoleStyles(role) + ' shadow-lg scale-105' : 'bg-slate-950 text-slate-600 border border-slate-800 hover:border-slate-600 role-btn-inactive'} ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}>
-                                                                            {role}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </td>
-                                                            {isAdmin && (
-                                                                <td className="p-4 text-right">
-                                                                    <button onClick={async ()=>{if(window.confirm(`${u.nickname}님을 정말 삭제하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid));}}
-                                                                        disabled={u.sn === '0000'}
-                                                                        className={`p-2.5 rounded-xl transition-colors ${u.sn === '0000' ? 'opacity-20 cursor-not-allowed text-slate-700' : 'text-red-900 hover:text-red-500 hover:bg-red-500/10 bg-red-500/5'}`}>
-                                                                        <Icon name="trash-2" size={16}/>
-                                                                    </button>
-                                                                </td>
-                                                            )}
-                                                        </tr>
-                                                    ))}
-                                                    {filtered.length === 0 && (
-                                                        <tr><td colSpan="5" className="p-8 text-center text-slate-600 font-bold">해당 권한의 사원이 없습니다.</td></tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => isAdmin && updateUser(u.uid, {role: ROLES.EMPLOYEE})} className="px-4 py-2 rounded-xl text-xs font-heavy bg-green-600 hover:bg-green-500 text-white transition-all flex items-center gap-1"><Icon name="check" size={13}/> 사원 승인</button>
+                                                <button onClick={async () => { if(window.confirm(`${u.nickname}님의 가입을 거절하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid)); }} className="px-4 py-2 rounded-xl text-xs font-heavy bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white border border-red-700/30 transition-all flex items-center gap-1"><Icon name="x" size={13}/> 거절</button>
+                                            </div>
                                         </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* 사원 명단 */}
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl text-white flex items-center gap-3 font-heavy"><Icon name="users" className="text-blue-500"/> 사원 명단 관리</h2>
+                        {!isAdmin && <span className="text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">읽기 전용 모드</span>}
+                    </div>
+
+                    {(() => {
+                        const FILTERS = [
+                            { key:'all', label:'전체' }, { key:'사원', label:'사원' },
+                            { key:'감사팀', label:'감사팀' }, { key:'관리자', label:'관리자' }, { key:'이벤트용', label:'이벤트용' },
+                        ];
+                        const filtered = allUsers.filter(u => u.role !== ROLES.PENDING).filter(u => memberFilter === 'all' || u.role === memberFilter).sort((a,b) => a.nickname.localeCompare(b.nickname, 'ko'));
+                        return (
+                            <div className="space-y-4">
+                                <div className="flex flex-wrap gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 w-fit">
+                                    {FILTERS.map(f => (
+                                        <button key={f.key} onClick={()=>setMemberFilter(f.key)}
+                                            className={`px-4 py-2 rounded-lg text-xs font-heavy transition-all ${memberFilter===f.key ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                                            {f.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="card p-0 overflow-hidden shadow-2xl">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left font-heavy">
+                                            <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase tracking-widest">
+                                                <tr className="border-b border-slate-700">
+                                                    <th className="p-4 whitespace-nowrap">고유번호</th>
+                                                    <th className="p-4 whitespace-nowrap">닉네임 / 가입일</th>
+                                                    <th className="p-4 text-center whitespace-nowrap">비밀번호</th>
+                                                    <th className="p-4 text-center whitespace-nowrap">부여 권한</th>
+                                                    {isAdmin && <th className="p-4 text-right whitespace-nowrap">제명</th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-800 text-white font-heavy">
+                                                {filtered.map(u => (
+                                                    <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors">
+                                                        <td className="p-4"><div className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 text-center font-mono text-blue-500 text-base shadow-inner w-fit mx-auto">{u.sn}</div></td>
+                                                        <td className="p-4 whitespace-nowrap"><div className="text-base font-black">{u.nickname}</div><div className="text-[10px] text-slate-600 mt-0.5">Joined: {formatDate(u.joinDate)}</div></td>
+                                                        <td className="p-4 text-center">
+                                                            {u.sn === '0000' ? (
+                                                                <div className="flex items-center justify-center bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-max mx-auto"><span className="text-base tracking-[0.4em] font-mono text-slate-600">••••</span></div>
+                                                            ) : (
+                                                                <div className="flex items-center justify-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-max mx-auto">
+                                                                    <span className="text-base tracking-[0.4em] font-mono text-slate-400">{showPw[u.uid] ? u.password : '****'}</span>
+                                                                    <button onClick={()=>setShowPw({...showPw, [u.uid]: !showPw[u.uid]})} className="text-slate-600 hover:text-white transition-colors"><Icon name={showPw[u.uid] ? 'eye-off' : 'eye'} size={16}/></button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <div className="flex flex-wrap justify-center gap-1.5 max-w-[340px] mx-auto">
+                                                                {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN, ROLES.EVENT].map(role => (
+                                                                    <button key={role} onClick={() => isAdmin && updateUser(u.uid, {role})} disabled={!isAdmin}
+                                                                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${u.role === role ? getRoleStyles(role) + ' shadow-lg scale-105' : 'bg-slate-950 text-slate-600 border border-slate-800 hover:border-slate-600'} ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}>
+                                                                        {role}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        {isAdmin && (
+                                                            <td className="p-4 text-right">
+                                                                <button onClick={async ()=>{if(window.confirm(`${u.nickname}님을 정말 삭제하시겠습니까?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid));}}
+                                                                    disabled={u.sn === '0000'}
+                                                                    className={`p-2.5 rounded-xl transition-colors ${u.sn === '0000' ? 'opacity-20 cursor-not-allowed text-slate-700' : 'text-red-900 hover:text-red-500 hover:bg-red-500/10 bg-red-500/5'}`}>
+                                                                    <Icon name="trash-2" size={16}/>
+                                                                </button>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                                {filtered.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-600 font-bold">해당 권한의 사원이 없습니다.</td></tr>}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            );
-                        })()}
-                    </section>
+                            </div>
+                        );
+                    })()}
 
+                    </>)}
                 </div>
             );
         }
