@@ -2324,6 +2324,13 @@
             const savedGuide = config.guideContent || DEFAULT_GUIDE;
             const [guideWarnings, setGuideWarnings] = useState(savedGuide.warnings.join('\n'));
             const [guideSteps, setGuideSteps] = useState(savedGuide.steps.join('\n'));
+            const guideWarningsRef = React.useRef(null);
+            const guideStepsRef = React.useRef(null);
+            useEffect(() => {
+                [guideWarningsRef, guideStepsRef].forEach(ref => {
+                    if (ref.current) { ref.current.style.height = 'auto'; ref.current.style.height = ref.current.scrollHeight + 'px'; }
+                });
+            }, [guideWarnings, guideSteps, adminTab]);
             useEffect(() => {
                 const g = config.guideContent || DEFAULT_GUIDE;
                 setGuideWarnings(g.warnings.join('\n'));
@@ -2516,14 +2523,14 @@
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-xs text-red-400 font-heavy uppercase">⚠️ 유의사항 (줄바꿈으로 구분)</label>
-                                <textarea className="input-base font-bold resize-none text-sm" style={{height:'180px'}}
-                                    value={guideWarnings} onChange={e=>setGuideWarnings(e.target.value)}
+                                <textarea ref={guideWarningsRef} className="input-base font-bold resize-none text-sm" style={{minHeight:'120px', overflow:'hidden'}}
+                                    value={guideWarnings} onChange={e=>{ setGuideWarnings(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
                                     placeholder={"유의사항 1줄\n유의사항 2줄\n..."}/>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs text-blue-400 font-heavy uppercase">① 장부 작성 순서 (줄바꿈으로 구분)</label>
-                                <textarea className="input-base font-bold resize-none text-sm" style={{height:'180px'}}
-                                    value={guideSteps} onChange={e=>setGuideSteps(e.target.value)}
+                                <textarea ref={guideStepsRef} className="input-base font-bold resize-none text-sm" style={{minHeight:'120px', overflow:'hidden'}}
+                                    value={guideSteps} onChange={e=>{ setGuideSteps(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
                                     placeholder={"순서 1\n순서 2\n..."}/>
                             </div>
                         </div>
