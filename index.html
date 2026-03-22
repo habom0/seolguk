@@ -250,6 +250,20 @@
         const ACTIVE_ROLES = ['사원', '감사팀', '관리자'];
         const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
+        const copyToClipboard = (text) => {
+            const fallback = () => {
+                const el = document.createElement('textarea');
+                el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+                document.body.appendChild(el); el.select();
+                document.execCommand('copy'); document.body.removeChild(el);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(() => fallback());
+            } else {
+                fallback();
+            }
+        };
+
         const formatKRW = (amount) => {
             if (amount === 0) return "0원";
             const eok = Math.floor(amount / 100000000);
@@ -441,7 +455,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.5</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.7</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -519,7 +533,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.5</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.7</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -539,7 +553,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.5</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.7</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -733,16 +747,28 @@
 
             const copyAmount = () => {
                 const amount = String(Math.round(total * 0.5));
-                navigator.clipboard ? navigator.clipboard.writeText(amount) : (() => { const el = document.createElement('textarea'); el.value = amount; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); })();
+                copyToClipboard(amount);
                 showToast("입금액이 복사되었습니다.");
             };
 
             const copyReason = () => {
-                const SHORT = { fullpack:'풀팩', honeyjelly:'젤리', honeystick:'스틱', painkiller:'진통', elixir:'엘릭', parachute:'낙' };
-                const itemSummary = itemKeys.filter(k => parseInt(form[k]) > 0).map(k => `${SHORT[k] || items[k].label.slice(0,2)}${form[k]}`).join('/');
-                const text = `${form.buyerSn}/${form.buyerNickname} - ${itemSummary || '품목미입력'}`;
-                navigator.clipboard ? navigator.clipboard.writeText(text) : (() => { const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); })();
+                const itemSummary = itemKeys.filter(k => parseInt(form[k]) > 0).map(k => `${items[k].emoji}${form[k]}`).join(' ');
+                const text = `${form.buyerNickname}(${form.buyerSn}) - ${itemSummary || '품목미입력'}`;
+                copyToClipboard(text);
                 showToast("입금 사유가 복사되었습니다.");
+            };
+
+            const copyRecordReason = (r) => {
+                const itemSummary = itemKeys.filter(k => parseInt(r[k]) > 0).map(k => `${items[k].emoji}${r[k]}`).join(' ');
+                const text = `${r.buyerNickname}(${r.buyerSn}) - ${itemSummary || '품목미입력'}`;
+                copyToClipboard(text);
+                showToast("입금 사유가 복사되었습니다.");
+            };
+
+            const copyRecordAmount = (r) => {
+                const amount = String(Math.round(r.totalAmount * 0.5));
+                copyToClipboard(amount);
+                showToast("입금액이 복사되었습니다.");
             };
 
             const buyerSnRef = React.useRef(null);
@@ -952,7 +978,7 @@
                             <div className="text-center py-10 text-slate-600 font-bold">이번 주 판매 기록이 없습니다.</div>
                         ) : (
                         <table className="w-full text-left font-bold">
-                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest font-heavy"><tr className="font-heavy"><th className="p-4 whitespace-nowrap">날짜</th><th className="p-4 whitespace-nowrap">구매자</th><th className="p-4 text-center whitespace-nowrap">품목</th><th className="p-4 text-center whitespace-nowrap">매출</th><th className="p-4 text-center whitespace-nowrap">상태</th><th className="p-4 text-center whitespace-nowrap">수정</th></tr></thead>
+                            <thead className="text-slate-500 text-[11px] border-b border-slate-800 uppercase tracking-widest font-heavy"><tr className="font-heavy"><th className="p-4 whitespace-nowrap">날짜</th><th className="p-4 whitespace-nowrap">구매자</th><th className="p-4 text-center whitespace-nowrap">품목</th><th className="p-4 text-center whitespace-nowrap">매출</th><th className="p-4 text-center whitespace-nowrap">상태</th><th className="p-4 text-center whitespace-nowrap">복사</th><th className="p-4 text-center whitespace-nowrap">수정</th></tr></thead>
                             <tbody className="text-white font-bold">
                                 {myWeekRecords.map(r => {
                                     const itemSummary = itemKeys.filter(k => parseInt(r[k]) > 0).map(k => `${items[k].emoji}${r[k]}`).join(' ');
@@ -966,6 +992,18 @@
                                             <div className="flex flex-col items-center gap-1 font-heavy">
                                                 <StatusBadge record={r} />
                                                 {r.isEdited && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-md font-heavy">수정됨</span>}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center whitespace-nowrap">
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <button onClick={()=>copyRecordAmount(r)} title="입금액 복사"
+                                                    className="p-2 bg-blue-600/10 hover:bg-blue-600/25 text-blue-400 rounded-lg transition-all">
+                                                    <Icon name="copy" size={14}/>
+                                                </button>
+                                                <button onClick={()=>copyRecordReason(r)} title="입금 사유 복사"
+                                                    className="p-2 bg-green-600/10 hover:bg-green-600/25 text-green-400 rounded-lg transition-all">
+                                                    <Icon name="clipboard-copy" size={14}/>
+                                                </button>
                                             </div>
                                         </td>
                                         <td className="p-4 text-center font-heavy whitespace-nowrap">
