@@ -446,6 +446,10 @@
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notifId), { read: true });
             };
 
+            const deleteNotif = async (notifId) => {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notifId));
+            };
+
             const unreadCount = notifications.filter(n => !n.read).length;
 
             if (isInitialLoading) {
@@ -655,36 +659,51 @@
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {notifications.map(n => (
+                                        {notifications.map(n => {
+                                            const relatedRecord = n.recordId ? records.find(r => r.id === n.recordId) : null;
+                                            const isResubmitted = relatedRecord?.resubmitted === true;
+                                            return (
                                             <div key={n.id}
                                                 onClick={() => {
                                                     if (!n.read) markNotifRead(n.id);
-                                                    if (n.recordId && n.type === 'hold') {
+                                                    if (n.recordId && n.type === 'hold' && !isResubmitted) {
                                                         setShowNotifModal(false);
                                                         setActiveTab('dashboard');
                                                         setPendingEditRecordId(n.recordId);
                                                     }
                                                 }}
-                                                className={`rounded-2xl border transition-all ${n.recordId && n.type === 'hold' ? 'cursor-pointer hover:border-red-600/50' : ''} ${n.read ? 'bg-slate-950/40 border-slate-800 opacity-60' : 'bg-red-900/10 border-red-700/30'}`}>
+                                                className={`rounded-2xl border transition-all ${n.recordId && n.type === 'hold' && !isResubmitted ? 'cursor-pointer hover:border-red-600/50' : ''} ${isResubmitted ? 'bg-green-900/10 border-green-800/30 opacity-80' : n.read ? 'bg-slate-950/40 border-slate-800 opacity-60' : 'bg-red-900/10 border-red-700/30'}`}>
                                                 <div className="p-4 flex items-start gap-3">
-                                                    <div className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${n.type==='hold' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                        <Icon name={n.type==='hold' ? 'alert-triangle' : 'message-circle'} size={16}/>
+                                                    <div className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${isResubmitted ? 'bg-green-500/20 text-green-400' : n.type==='hold' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                        <Icon name={isResubmitted ? 'refresh-cw' : n.type==='hold' ? 'alert-triangle' : 'message-circle'} size={16}/>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-heavy text-sm leading-relaxed break-words whitespace-pre-wrap text-white">{n.message}</p>
                                                         <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
                                                             <p className="text-[10px] text-slate-500 font-bold">{formatFullDateTime(n.createdAt)}</p>
-                                                            {n.recordId && n.type === 'hold' && (
+                                                            {isResubmitted ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[11px] text-green-400 font-heavy bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                                                        <Icon name="check-circle" size={10}/> 재제출 완료
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={e => { e.stopPropagation(); deleteNotif(n.id); }}
+                                                                        className="text-[11px] text-slate-400 hover:text-red-400 font-heavy bg-slate-800 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/30 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all">
+                                                                        <Icon name="trash-2" size={10}/> 삭제
+                                                                    </button>
+                                                                </div>
+                                                            ) : n.recordId && n.type === 'hold' ? (
                                                                 <span className="text-[11px] text-red-300 font-heavy bg-red-500/15 border border-red-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
                                                                     <Icon name="edit-2" size={11}/> 탭하여 장부 수정하기
                                                                 </span>
-                                                            )}
+                                                            ) : null}
                                                         </div>
                                                     </div>
-                                                    {!n.read && <span className="w-2 h-2 bg-red-400 rounded-full flex-shrink-0 mt-1.5"></span>}
+                                                    {!n.read && !isResubmitted && <span className="w-2 h-2 bg-red-400 rounded-full flex-shrink-0 mt-1.5"></span>}
                                                 </div>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
