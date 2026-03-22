@@ -465,7 +465,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.2.4</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.2.5</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -543,7 +543,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.2.4</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.2.5</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -563,7 +563,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.2.4</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.2.5</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -799,9 +799,20 @@
                 e.preventDefault();
                 if(!reason.trim()) return alert("수정 사유를 입력하세요.");
                 let nt = 0; itemKeys.forEach(k => nt += (parseInt(editing[k])||0) * (items[k].price||0));
-                const updated = { ...editing, totalAmount: nt, note: `${editing.note || ""}\n[수정사유: ${reason}]`.trim(), isEdited: true, status: 'pending' };
+                const wasHold = !!(editing.auditReason); // 보류건 재제출 여부
+                const updated = {
+                    ...editing,
+                    totalAmount: nt,
+                    note: `${editing.note || ""}\n[수정사유: ${reason}]`.trim(),
+                    isEdited: true,
+                    status: 'pending',
+                    auditReason: '',    // 보류 사유 초기화 → 감사대기열에 다시 노출
+                    auditMemo: '',
+                    resubmitted: wasHold, // 보류 후 재제출 플래그
+                    resubmittedAt: wasHold ? new Date().toISOString() : (editing.resubmittedAt || null),
+                };
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', editing.id), updated);
-                setEditing(null); setReason(""); alert("수정 완료! 재감사가 진행됩니다.");
+                setEditing(null); setReason(""); showToast("재제출 완료! 감사대기열로 이동되었습니다.");
             };
 
             return (
@@ -1002,6 +1013,7 @@
                                             <div className="flex flex-col items-center gap-1 font-heavy">
                                                 <StatusBadge record={r} />
                                                 {r.isEdited && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-md font-heavy">수정됨</span>}
+                                                {r.resubmitted && <span className="text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-md font-heavy">재제출</span>}
                                             </div>
                                         </td>
                                         <td className="p-4 text-center whitespace-nowrap">
@@ -1579,9 +1591,24 @@
                                 const isDuplicate = todayBuyerRecs.length > 0;
 
                                 return (
-                                <div key={r.id} className={`card border-l-8 shadow-xl ${isDuplicate ? 'border-l-orange-500 bg-orange-950/10' : 'border-l-blue-600'}`}>
+                                <div key={r.id} className={`card border-l-8 shadow-xl ${isDuplicate ? 'border-l-orange-500 bg-orange-950/10' : r.resubmitted ? 'border-l-green-500 bg-green-950/10' : 'border-l-blue-600'}`}>
                                     <div className="flex flex-col gap-4">
-                                        {/* 중복 구매 경고 배너 */}
+                                        {/* 재제출 배너 */}
+                                        {r.resubmitted && !isDuplicate && (
+                                            <div className="bg-green-900/25 border border-green-600/40 rounded-2xl px-4 py-2.5 flex items-center gap-3">
+                                                <Icon name="refresh-cw" className="text-green-400 flex-shrink-0" size={16}/>
+                                                <div>
+                                                    <span className="text-green-300 font-heavy text-sm">보류 후 재제출된 건입니다.</span>
+                                                    {r.resubmittedAt && <span className="text-green-600 text-xs ml-2">{formatFullDateTime(r.resubmittedAt)}</span>}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {r.resubmitted && isDuplicate && (
+                                            <div className="bg-green-900/25 border border-green-600/40 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                                                <Icon name="refresh-cw" className="text-green-400" size={13}/>
+                                                <span className="text-green-300 font-heavy text-xs">보류 후 재제출</span>
+                                            </div>
+                                        )}
                                         {isDuplicate && (
                                             <div className="bg-orange-900/30 border border-orange-600/50 rounded-2xl px-4 py-3 flex items-start gap-3">
                                                 <Icon name="alert-triangle" className="text-orange-400 flex-shrink-0 mt-0.5" size={18}/>
