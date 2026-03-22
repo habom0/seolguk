@@ -455,7 +455,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.1.7</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.2.0</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -533,7 +533,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.1.7</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.2.0</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -553,7 +553,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.1.7</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.2.0</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -592,7 +592,7 @@
                     {/* ── 메인 콘텐츠 ── */}
                     <main className="main-area lm-content">
                         {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} pendingEditRecordId={pendingEditRecordId} clearPendingEdit={()=>setPendingEditRecordId(null)} />}
-                        {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allRecords={records} />}
+                        {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allRecords={records} allUsers={allUsers} config={config} />}
                         {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} config={config} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
@@ -1165,156 +1165,244 @@
         }
 
         // --- Ledger View ---
-        function LedgerView({ records, range, offset, setOffset, allRecords }) {
-            const filtered = useMemo(() => records.filter(r => {
-                const d = new Date(r.timestamp); return d >= range.start && d <= range.end;
-            }), [records, range]);
+        function LedgerView({ records, range, offset, setOffset, allRecords, allUsers, config }) {
+            const items = getEffectiveItems(config);
+            const itemKeys = Object.keys(items);
 
-            // ── 오늘 매출 ──
-            const todayTotal = useMemo(() => {
-                const now = new Date();
-                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const todayEnd   = new Date(todayStart); todayEnd.setDate(todayStart.getDate() + 1);
-                return allRecords.filter(r => { const d = new Date(r.timestamp); return d >= todayStart && d < todayEnd; }).reduce((s,r)=>s+(r.totalAmount||0), 0);
-            }, [allRecords]);
+            const [searchQuery, setSearchQuery] = useState('');
+            const [ledgerTab, setLedgerTab] = useState('all'); // all / employee / event
 
-            // ── 이번 주 매출 ──
-            const weekTotal = useMemo(() => filtered.reduce((s,r) => s+(r.totalAmount||0), 0), [filtered]);
+            // 오늘 범위
+            const todayStart = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+            const todayEnd   = useMemo(() => { const d = new Date(todayStart); d.setDate(d.getDate()+1); return d; }, [todayStart]);
 
-            // ── 이번달 매출 ──
-            const monthTotal = useMemo(() => {
-                const now = new Date();
-                const ms = new Date(now.getFullYear(), now.getMonth(), 1);
-                return allRecords.filter(r => new Date(r.timestamp) >= ms).reduce((s,r)=>s+(r.totalAmount||0), 0);
-            }, [allRecords]);
+            // 이벤트용 uid 목록
+            const eventUids = useMemo(() => new Set(allUsers.filter(u => u.role === ROLES.EVENT).map(u => u.uid)), [allUsers]);
 
-            // ── 최근 30일 일별 집계 (하루 00시 마감) ──
+            // 오늘 전체 판매건
+            const todayAll = useMemo(() => allRecords.filter(r => { const d = new Date(r.timestamp); return d >= todayStart && d < todayEnd; }), [allRecords, todayStart, todayEnd]);
+
+            // 탭 필터 함수
+            const applyTabFilter = (arr) => {
+                if (ledgerTab === 'employee') return arr.filter(r => !eventUids.has(r.sellerUid));
+                if (ledgerTab === 'event')    return arr.filter(r =>  eventUids.has(r.sellerUid));
+                return arr;
+            };
+
+            const todayFiltered = useMemo(() => applyTabFilter(todayAll), [todayAll, ledgerTab, eventUids]);
+
+            // 검색 결과 — 구매자 닉네임 또는 고유번호
+            const searchResult = useMemo(() => {
+                const q = searchQuery.trim();
+                if (!q) return [];
+                return todayAll.filter(r =>
+                    r.buyerNickname?.includes(q) || r.buyerSn?.includes(q) ||
+                    r.sellerNickname?.includes(q) || r.sellerSn?.includes(q)
+                );
+            }, [todayAll, searchQuery]);
+
+            // 구매자별 품목 합계 (중복구매 확인용)
+            const buyerSummary = useMemo(() => {
+                if (!searchQuery.trim()) return {};
+                const q = searchQuery.trim();
+                const matched = todayAll.filter(r => r.buyerNickname?.includes(q) || r.buyerSn?.includes(q));
+                const summary = {};
+                matched.forEach(r => {
+                    const key = r.buyerSn || r.buyerNickname;
+                    if (!summary[key]) summary[key] = { nickname: r.buyerNickname, sn: r.buyerSn, items: {} };
+                    itemKeys.forEach(k => { summary[key].items[k] = (summary[key].items[k] || 0) + (parseInt(r[k]) || 0); });
+                });
+                return summary;
+            }, [searchQuery, todayAll, itemKeys]);
+
+            // 주간 필터 (탭 적용)
+            const filtered = useMemo(() => {
+                const base = allRecords.filter(r => { const d = new Date(r.timestamp); return d >= range.start && d <= range.end; });
+                return applyTabFilter(base);
+            }, [allRecords, range, ledgerTab, eventUids]);
+
+            // 통계
+            const todayTotal   = useMemo(() => todayAll.filter(r=>!eventUids.has(r.sellerUid)).reduce((s,r)=>s+(r.totalAmount||0),0), [todayAll, eventUids]);
+            const weekTotal    = useMemo(() => allRecords.filter(r=>{ const d=new Date(r.timestamp); return d>=range.start&&d<=range.end&&!eventUids.has(r.sellerUid); }).reduce((s,r)=>s+(r.totalAmount||0),0), [allRecords,range,eventUids]);
+            const monthTotal   = useMemo(() => { const ms=new Date(new Date().getFullYear(),new Date().getMonth(),1); return allRecords.filter(r=>new Date(r.timestamp)>=ms&&!eventUids.has(r.sellerUid)).reduce((s,r)=>s+(r.totalAmount||0),0); }, [allRecords,eventUids]);
+
+            // 30일 차트
             const chartData = useMemo(() => {
-                const today = new Date();
-                today.setHours(0,0,0,0); // 오늘 00시 기준 — 오늘치는 진행중
-                const days = [];
-                for (let i = 29; i >= 0; i--) {
-                    const d = new Date(today);
-                    d.setDate(today.getDate() - i);
-                    const nextDay = new Date(d); nextDay.setDate(d.getDate() + 1);
-                    const isPast = i > 0; // 오늘 제외하고 완전히 마감된 날
-                    const amount = allRecords
-                        .filter(r => { const rd = new Date(r.timestamp); return rd >= d && rd < nextDay; })
-                        .reduce((s,r) => s+(r.totalAmount||0), 0);
-                    const yy = String(d.getFullYear()).slice(2);
-                    const mm = String(d.getMonth()+1).padStart(2,'0');
-                    const dd = String(d.getDate()).padStart(2,'0');
-                    days.push({
-                        label: `${mm}/${dd}`,
-                        fullLabel: `${yy}-${mm}-${dd}`,
-                        amount,
-                        eok: Math.floor(amount / 100000000), // 억 단위 (천만원 버림)
-                        isToday: i === 0,
-                        date: d,
-                    });
-                }
-                return days;
-            }, [allRecords]);
+                const today = new Date(); today.setHours(0,0,0,0);
+                return Array.from({length:30},(_,i)=>{
+                    const d = new Date(today); d.setDate(today.getDate()-(29-i));
+                    const next = new Date(d); next.setDate(d.getDate()+1);
+                    const amount = allRecords.filter(r=>{ const rd=new Date(r.timestamp); return rd>=d&&rd<next&&!eventUids.has(r.sellerUid); }).reduce((s,r)=>s+(r.totalAmount||0),0);
+                    const mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+                    return { label:`${mm}/${dd}`, fullLabel:`${String(d.getFullYear()).slice(2)}-${mm}-${dd}`, amount, eok:Math.floor(amount/100000000), isToday:i===29 };
+                });
+            }, [allRecords, eventUids]);
+            const maxEok = Math.max(...chartData.map(d=>d.eok),1);
+            const avg30Eok = (()=>{ const h=chartData.filter(d=>d.eok>0&&!d.isToday); return h.length>0?h.reduce((s,d)=>s+d.eok,0)/h.length:0; })();
 
-            const maxEok = Math.max(...chartData.map(d => d.eok), 1);
-            const avg30Eok = (() => {
-                const hasDays = chartData.filter(d => d.eok > 0 && !d.isToday);
-                return hasDays.length > 0 ? hasDays.reduce((s,d)=>s+d.eok,0)/hasDays.length : 0;
-            })();
+            // 탭 버튼 공통
+            const TabBtn = ({k, label}) => (
+                <button onClick={()=>setLedgerTab(k)}
+                    className={`px-4 py-2 rounded-lg text-xs font-heavy transition-all ${ledgerTab===k ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                    {label}
+                </button>
+            );
 
             return (
                 <div className="space-y-5 font-bold">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="layers" className="text-blue-500" size={24}/> 전체 장부 현황</h2>
-                        <div className="flex items-center gap-3 bg-slate-900 px-5 py-2.5 rounded-2xl border border-slate-800 shadow-xl font-heavy">
-                            <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-left" size={22}/></button>
-                            <span className="text-blue-400 whitespace-nowrap text-sm font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
-                            <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-right" size={22}/></button>
+                        {/* 탭 */}
+                        <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                            <TabBtn k="all" label="전체"/>
+                            <TabBtn k="employee" label="사원"/>
+                            <TabBtn k="event" label="이벤트"/>
                         </div>
                     </div>
 
-                    {/* ── 2열 카드 ── */}
+                    {/* ── 2열 통계 카드 ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                        {/* 장부 통계 */}
-                        <div className="card shadow-xl space-y-4">
-                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="book-open" className="text-green-400" size={17}/> 장부 통계</h3>
-                            <div className="space-y-3">
-                                {[
-                                    { label:'오늘 매출',   value: formatKRW(todayTotal),  color:'text-green-400'  },
-                                    { label:'이번 주 매출', value: formatKRW(weekTotal),  color:'text-white'      },
-                                    { label:'이번 달 매출', value: formatKRW(monthTotal), color:'text-blue-400'   },
-                                ].map((item, i) => (
-                                    <div key={i} className="flex justify-between items-center py-3 border-b border-slate-800 last:border-0">
-                                        <span className="text-slate-400 font-bold text-sm">{item.label}</span>
-                                        <span className={`${item.color} font-heavy text-xl`}>{item.value}</span>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="card shadow-xl space-y-3">
+                            <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="book-open" className="text-green-400" size={17}/> 장부 통계 <span className="text-[10px] text-slate-600 font-bold">(이벤트 제외)</span></h3>
+                            {[
+                                { label:'오늘 매출',    value: formatKRW(todayTotal),  color:'text-green-400' },
+                                { label:'이번 주 매출', value: formatKRW(weekTotal),   color:'text-white'     },
+                                { label:'이번 달 매출', value: formatKRW(monthTotal),  color:'text-blue-400'  },
+                            ].map((item,i) => (
+                                <div key={i} className="flex justify-between items-center py-2.5 border-b border-slate-800 last:border-0">
+                                    <span className="text-slate-400 font-bold text-sm">{item.label}</span>
+                                    <span className={`${item.color} font-heavy text-xl`}>{item.value}</span>
+                                </div>
+                            ))}
                         </div>
-
-                        {/* 최근 30일 거래 추이 */}
                         <div className="card shadow-xl space-y-3">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-heavy flex items-center gap-2"><Icon name="bar-chart-2" className="text-blue-400" size={17}/> 최근 30일 거래 추이</h3>
                                 <span className="text-xs text-slate-500 font-bold">일평균 <span className="text-white font-heavy">{avg30Eok.toFixed(1)}억</span></span>
                             </div>
-
-                            {/* 차트 영역 */}
-                            <div className="relative" style={{height:'160px'}}>
-                                {/* 평균선 */}
+                            <div className="chart-wrap relative" style={{height:'160px'}}>
                                 {avg30Eok > 0 && (
-                                    <div className="absolute left-0 right-0 pointer-events-none"
-                                        style={{top:`${(1 - avg30Eok/maxEok)*100}%`, borderTop:'1px dashed rgba(239,68,68,0.5)'}}>
+                                    <div className="absolute left-0 right-0 pointer-events-none" style={{top:`${(1-avg30Eok/maxEok)*100}%`, borderTop:'1px dashed rgba(239,68,68,0.5)'}}>
                                         <span className="absolute right-0 -top-3.5 text-[9px] text-red-400 font-bold bg-slate-900 px-1">avg</span>
                                     </div>
                                 )}
-                                {/* 막대들 */}
                                 <div className="flex items-end gap-[2px] h-full">
-                                    {chartData.map((d, i) => {
-                                        const pct = maxEok > 0 ? (d.eok / maxEok) * 100 : 0;
-                                        const barColor = d.isToday ? '#3b82f6' : '#f97316';
-                                        return (
-                                            <div key={i} className="flex flex-col items-center flex-1 h-full justify-end group relative">
-                                                {/* hover 툴팁 */}
-                                                <div className="absolute bottom-full mb-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[9px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none text-center">
-                                                    {d.fullLabel}<br/>
-                                                    <span className="text-yellow-400">{d.eok > 0 ? `${d.eok}억` : '0'}</span>
-                                                </div>
-                                                {/* 막대 */}
-                                                <div className="w-full rounded-t-[2px]"
-                                                    style={{
-                                                        height: d.eok > 0 ? `${Math.max(pct, 3)}%` : '2px',
-                                                        background: d.eok > 0 ? barColor : 'rgba(255,255,255,0.05)',
-                                                    }}/>
-                                                {/* 억 단위 레이블 — 값 있는 날만 */}
-                                                <span className="text-[7px] font-heavy leading-none mt-0.5 truncate w-full text-center"
-                                                    style={{color: d.eok > 0 ? (d.isToday ? '#93c5fd' : '#fb923c') : 'transparent'}}>
-                                                    {d.eok > 0 ? `${d.eok}` : ''}
-                                                </span>
-                                                {/* 날짜 레이블 — 5일마다 + 오늘 */}
-                                                <span className="text-[7px] text-slate-600 leading-none mt-0.5 truncate w-full text-center font-bold">
-                                                    {(i % 5 === 0 || d.isToday) ? d.label : ''}
-                                                </span>
+                                    {chartData.map((d,i) => (
+                                        <div key={i} className="flex flex-col items-center flex-1 h-full justify-end group relative">
+                                            <div className="absolute bottom-full mb-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[9px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none text-center">
+                                                {d.fullLabel}<br/><span className="text-orange-400">{d.eok>0?`${d.eok}억`:'0'}</span>
                                             </div>
-                                        );
-                                    })}
+                                            <div className="w-full rounded-t-[2px]" style={{height:d.eok>0?`${Math.max((d.eok/maxEok)*100,3)}%`:'2px', background:d.eok>0?(d.isToday?'#3b82f6':'#f97316'):'rgba(255,255,255,0.05)'}}/>
+                                            <span className="text-[7px] font-heavy leading-none mt-0.5 truncate w-full text-center" style={{color:d.eok>0?(d.isToday?'#93c5fd':'#fb923c'):'transparent'}}>{d.eok>0?d.eok:''}</span>
+                                            <span className="text-[7px] text-slate-600 leading-none mt-0.5 truncate w-full text-center font-bold">{(i%5===0||d.isToday)?d.label:''}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 text-[9px] text-slate-600 font-bold border-t border-slate-800 pt-2">
                                 <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{background:'#f97316'}}/>과거</span>
                                 <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-500"/>오늘</span>
                                 <span className="flex items-center gap-1"><span className="inline-block w-6 border-t border-dashed border-red-400"/>일평균</span>
-                                <span className="text-slate-700 ml-auto">막대 위 숫자 = 억원</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── 오늘의 판매건 ── */}
+                    <div className="card p-0 overflow-hidden shadow-2xl border border-blue-900/30">
+                        <div className="px-5 py-3.5 border-b border-slate-800 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Icon name="sun" className="text-yellow-400" size={18}/>
+                                <span className="font-heavy text-white text-sm">오늘의 판매건</span>
+                                <span className="text-[10px] text-slate-500 font-bold">{todayFiltered.length}건 · {formatKRW(todayFiltered.reduce((s,r)=>s+(r.totalAmount||0),0))}</span>
+                            </div>
+                            {/* 중복구매 검색 */}
+                            <div className="relative w-full sm:w-64">
+                                <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
+                                <input type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
+                                    placeholder="구매자 닉네임 또는 고번 검색"
+                                    className="input-base pl-8 py-2 text-xs w-full"/>
                             </div>
                         </div>
 
+                        {/* 검색 결과 — 구매자 구매 현황 */}
+                        {searchQuery.trim() && Object.keys(buyerSummary).length > 0 && (
+                            <div className="px-4 py-3 bg-blue-900/10 border-b border-blue-800/30 space-y-2">
+                                <p className="text-[10px] text-blue-400 font-heavy uppercase">구매자 오늘 구매 현황</p>
+                                {Object.values(buyerSummary).map((b,i) => {
+                                    const itemList = itemKeys.filter(k=>(b.items[k]||0)>0);
+                                    return (
+                                        <div key={i} className="flex flex-wrap items-center gap-2 bg-slate-900 rounded-xl px-3 py-2.5 border border-slate-800">
+                                            <span className="text-sm font-heavy text-white">{b.nickname}</span>
+                                            <span className="text-[10px] text-slate-500">#{b.sn}</span>
+                                            <span className="text-slate-700">|</span>
+                                            {itemList.length > 0 ? itemList.map(k => {
+                                                const qty = b.items[k];
+                                                const max = items[k]?.max || 999;
+                                                const isFull = qty >= max;
+                                                return (
+                                                    <span key={k} className={`text-sm font-heavy px-2 py-0.5 rounded-lg ${isFull ? 'bg-red-500/20 text-red-400 border border-red-700/30' : 'bg-green-500/10 text-green-400 border border-green-700/20'}`}>
+                                                        {items[k]?.emoji}{qty}
+                                                        {isFull && <span className="ml-1 text-[9px]">MAX</span>}
+                                                    </span>
+                                                );
+                                            }) : <span className="text-slate-600 text-xs">구매 내역 없음</span>}
+                                        </div>
+                                    );
+                                })}
+                                {searchQuery.trim() && Object.keys(buyerSummary).length === 0 && (
+                                    <p className="text-xs text-green-400 font-heavy">✅ 오늘 구매 이력 없음</p>
+                                )}
+                            </div>
+                        )}
+                        {searchQuery.trim() && Object.keys(buyerSummary).length === 0 && (
+                            <div className="px-4 py-2.5 bg-green-900/10 border-b border-green-800/20">
+                                <p className="text-xs text-green-400 font-heavy">✅ "{searchQuery}" — 오늘 구매 이력 없음</p>
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left font-heavy">
+                                <thead className="bg-slate-800 text-slate-400 text-[10px] uppercase tracking-wider">
+                                    <tr className="border-b border-slate-700">
+                                        <th className="p-3 whitespace-nowrap">시간</th>
+                                        <th className="p-3 whitespace-nowrap">판매 사원</th>
+                                        <th className="p-3 whitespace-nowrap">구매자</th>
+                                        <th className="p-3 text-center whitespace-nowrap">품목</th>
+                                        <th className="p-3 text-right whitespace-nowrap">매출</th>
+                                        <th className="p-3 text-center whitespace-nowrap">상태</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800 text-white font-heavy">
+                                    {todayFiltered.length === 0 ? (
+                                        <tr><td colSpan="6" className="p-8 text-center text-slate-600 font-bold">오늘 판매 기록이 없습니다.</td></tr>
+                                    ) : todayFiltered.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(r => {
+                                        const itemSummary = itemKeys.filter(k=>parseInt(r[k])>0).map(k=>`${items[k]?.emoji||''}${r[k]}`).join(' ');
+                                        const isMatch = searchQuery.trim() && (r.buyerNickname?.includes(searchQuery)||r.buyerSn?.includes(searchQuery));
+                                        return (
+                                            <tr key={r.id} className={`hover:bg-slate-800/50 transition-colors ${isMatch ? 'bg-blue-900/20 border-l-2 border-l-blue-500' : ''}`}>
+                                                <td className="p-3 text-xs text-slate-500 font-mono whitespace-nowrap">{new Date(r.timestamp).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</td>
+                                                <td className="p-3 whitespace-nowrap"><div className="text-sm">{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
+                                                <td className="p-3 whitespace-nowrap"><div className="text-sm">{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
+                                                <td className="p-3 text-center text-sm whitespace-nowrap">{itemSummary || '-'}</td>
+                                                <td className="p-3 text-right font-heavy text-sm whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
+                                                <td className="p-3 text-center whitespace-nowrap"><StatusBadge record={r}/></td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* ── 주간 장부 테이블 ── */}
                     <div className="card p-0 overflow-hidden shadow-2xl">
-                        <div className="px-5 py-3 border-b border-slate-800">
-                            <span className="text-sm font-heavy text-slate-400">{filtered.length}건 · 매출 {formatKRW(filtered.reduce((s,r)=>s+(r.totalAmount||0),0))}</span>
+                        <div className="px-5 py-3 border-b border-slate-800 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+                            <span className="text-sm font-heavy text-slate-400">주간 {filtered.length}건 · 매출 {formatKRW(filtered.reduce((s,r)=>s+(r.totalAmount||0),0))}</span>
+                            <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 font-heavy w-fit">
+                                <button onClick={()=>setOffset(offset-1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-left" size={18}/></button>
+                                <span className="text-blue-400 whitespace-nowrap text-xs font-heavy">{range.start.toLocaleDateString()} ~ {range.end.toLocaleDateString()}</span>
+                                <button onClick={()=>setOffset(offset+1)} className="hover:text-blue-500 transition-all"><Icon name="chevron-right" size={18}/></button>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left font-heavy">
@@ -1323,24 +1411,29 @@
                                         <th className="p-4 whitespace-nowrap">날짜</th>
                                         <th className="p-4 whitespace-nowrap">판매 사원</th>
                                         <th className="p-4 whitespace-nowrap">구매자</th>
+                                        <th className="p-4 text-center whitespace-nowrap">품목</th>
                                         <th className="p-4 text-right whitespace-nowrap">매출액</th>
                                         <th className="p-4 text-right whitespace-nowrap">입금액</th>
                                         <th className="p-4 text-center whitespace-nowrap">상태</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 text-white font-heavy">
-                                    {filtered.map(r => (
+                                    {filtered.map(r => {
+                                        const itemSummary = itemKeys.filter(k=>parseInt(r[k])>0).map(k=>`${items[k]?.emoji||''}${r[k]}`).join(' ');
+                                        return (
                                         <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
                                             <td className="p-4 text-xs text-slate-500 font-mono whitespace-nowrap">{formatDate(r.timestamp)}</td>
                                             <td className="p-4 whitespace-nowrap"><div className="text-sm">{r.sellerNickname}</div><div className="text-[10px] text-slate-600">({r.sellerSn})</div></td>
                                             <td className="p-4 whitespace-nowrap"><div className="text-sm">{r.buyerNickname}</div><div className="text-[10px] text-slate-600">({r.buyerSn})</div></td>
+                                            <td className="p-4 text-center text-sm whitespace-nowrap">{itemSummary || '-'}</td>
                                             <td className="p-4 text-right font-heavy text-sm whitespace-nowrap">{formatKRW(r.totalAmount)}</td>
                                             <td className="p-4 text-right text-blue-400 font-heavy text-sm whitespace-nowrap">{formatKRW(r.totalAmount * 0.5)}</td>
-                                            <td className="p-4 text-center whitespace-nowrap"><StatusBadge record={r} /></td>
+                                            <td className="p-4 text-center whitespace-nowrap"><StatusBadge record={r}/></td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                     {filtered.length === 0 && (
-                                        <tr><td colSpan="6" className="p-10 text-center text-slate-600 font-bold">기록이 없습니다.</td></tr>
+                                        <tr><td colSpan="7" className="p-10 text-center text-slate-600 font-bold">기록이 없습니다.</td></tr>
                                     )}
                                 </tbody>
                             </table>
