@@ -1558,19 +1558,25 @@
             }, [allUsers, records]);
 
             const auditorRanking = useMemo(() => {
-                // 감사 처리 건수 집계 (auditorName 기준)
-                const counts = {};
-                records.forEach(r => { if (r.auditorName) counts[r.auditorName] = (counts[r.auditorName] || 0) + 1; });
-                // 감사 권한자(AUDIT+ADMIN) 전원 포함 — 0건도 표시
+                // 전체 처리건수
+                const totalCounts = {};
+                records.forEach(r => { if (r.auditorName) totalCounts[r.auditorName] = (totalCounts[r.auditorName] || 0) + 1; });
+                // 이번 주 처리건수
+                const weekCounts = {};
+                records.filter(r => {
+                    if (!r.auditorName || !r.auditedAt) return false;
+                    const d = new Date(r.auditedAt);
+                    return d >= historyRange.start && d <= historyRange.end;
+                }).forEach(r => { weekCounts[r.auditorName] = (weekCounts[r.auditorName] || 0) + 1; });
+                // 감사 권한자 전원
                 const auditUsers = allUsers.filter(u => u.role === ROLES.AUDIT || u.role === ROLES.ADMIN);
                 const result = auditUsers.map(u => ({
-                    name: u.nickname,
-                    sn: u.sn,
-                    role: u.role,
-                    count: counts[u.nickname] || 0
+                    name: u.nickname, sn: u.sn, role: u.role,
+                    weekCount: weekCounts[u.nickname] || 0,
+                    totalCount: totalCounts[u.nickname] || 0,
                 }));
-                return result.sort((a, b) => b.count - a.count);
-            }, [records, allUsers]);
+                return result.sort((a, b) => b.weekCount - a.weekCount || b.totalCount - a.totalCount);
+            }, [records, allUsers, historyRange]);
 
             return (
                 <div className="space-y-8 animate-fade-in font-bold">
@@ -1824,37 +1830,77 @@
                     )}
 
                     {tab === 'team' && (
-                        <div className="card shadow-2xl font-heavy">
-                            <h2 className="text-xl text-indigo-400 font-heavy mb-6 flex items-center gap-2"><Icon name="shield-check" size={20}/> 감사팀 업무 실적 순위</h2>
-                            <div className="space-y-3">
-                                {auditorRanking.map((auditor, idx) => (
-                                    <div key={idx} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex justify-between items-center hover:bg-slate-900 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-heavy text-lg flex-shrink-0
-                                                ${idx === 0 && auditor.count > 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20'
-                                                : 'bg-slate-800 text-slate-500'}`}>{idx+1}</div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-lg font-heavy text-white">{auditor.name}</span>
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-heavy
-                                                        ${auditor.role === ROLES.ADMIN ? 'bg-amber-500/20 text-amber-400'
-                                                        : 'bg-indigo-500/20 text-indigo-400'}`}>
-                                                        {auditor.role}
-                                                    </span>
+                        <div className="card shadow-2xl font-heavy space-y-6">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <h2 className="text-xl text-indigo-400 font-heavy flex items-center gap-2"><Icon name="shield-check" size={20}/> 감사팀 업무 실적 순위</h2>
+                                <div className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
+                                    <button onClick={()=>setHistoryOffset(historyOffset-1)} className="hover:text-blue-400 transition-all text-slate-400"><Icon name="chevron-left" size={18}/></button>
+                                    <span className="text-xs text-slate-400 font-heavy whitespace-nowrap px-1">
+                                        {historyRange.start.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} ~ {historyRange.end.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})}
+                                    </span>
+                                    <button onClick={()=>setHistoryOffset(Math.min(historyOffset+1, 0))} disabled={historyOffset===0}
+                                        className={`transition-all ${historyOffset===0 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-400 hover:text-blue-400'}`}>
+                                        <Icon name="chevron-right" size={18}/>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {auditorRanking.length === 0 ? (
+                                <p className="text-center text-slate-600 py-8 font-bold">감사 권한 보유 사원이 없습니다.</p>
+                            ) : (<>
+                                {/* 1건 이상 처리한 멤버 — 강조 카드 */}
+                                <div className="space-y-3">
+                                    {auditorRanking.filter(a => a.weekCount > 0).map((auditor, idx) => {
+                                        const rankStyle = idx === 0
+                                            ? { border:'border-yellow-500/50', bg:'bg-yellow-900/10', numBg:'bg-yellow-500 text-black shadow-yellow-500/30', icon:'👑' }
+                                            : idx === 1
+                                            ? { border:'border-slate-400/40', bg:'bg-slate-800/30', numBg:'bg-slate-400 text-black', icon:'🥈' }
+                                            : idx === 2
+                                            ? { border:'border-amber-700/40', bg:'bg-amber-900/10', numBg:'bg-amber-700 text-white', icon:'🥉' }
+                                            : { border:'border-slate-800', bg:'bg-slate-950', numBg:'bg-slate-800 text-slate-400', icon:null };
+                                        return (
+                                            <div key={idx} className={`p-4 rounded-2xl border ${rankStyle.border} ${rankStyle.bg} flex justify-between items-center transition-all`}>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative flex-shrink-0">
+                                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-heavy text-lg ${rankStyle.numBg} shadow-lg`}>{idx+1}</div>
+                                                        {rankStyle.icon && <span className="absolute -top-2 -right-2 text-base">{rankStyle.icon}</span>}
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-base font-heavy text-white">{auditor.name}</span>
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-heavy ${auditor.role === ROLES.ADMIN ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>{auditor.role}</span>
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-600 font-bold">#{auditor.sn}</span>
+                                                    </div>
                                                 </div>
-                                                <span className="text-[10px] text-slate-600 font-bold">#{auditor.sn}</span>
+                                                <div className="text-right">
+                                                    <div className="flex items-baseline gap-1.5 justify-end">
+                                                        <span className="text-2xl font-black text-indigo-400">{auditor.weekCount}</span>
+                                                        <span className="text-xs text-slate-500 font-bold">건</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-600 font-bold">누적 {auditor.totalCount}건</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-[10px] text-slate-600 uppercase block tracking-widest font-heavy">처리건수</span>
-                                            <span className={`text-2xl font-black ${auditor.count > 0 ? 'text-indigo-400' : 'text-slate-700'}`}>{auditor.count}건</span>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* 0건 멤버 — 간단한 목록 */}
+                                {auditorRanking.filter(a => a.weekCount === 0).length > 0 && (
+                                    <div className="border-t border-slate-800 pt-4">
+                                        <p className="text-[10px] text-slate-600 uppercase font-heavy mb-3 tracking-widest">이번 주 처리 없음</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {auditorRanking.filter(a => a.weekCount === 0).map((auditor, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2">
+                                                    <span className="text-sm text-slate-400 font-heavy">{auditor.name}</span>
+                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-heavy ${auditor.role === ROLES.ADMIN ? 'bg-amber-500/15 text-amber-600' : 'bg-indigo-500/15 text-indigo-500'}`}>{auditor.role}</span>
+                                                    {auditor.totalCount > 0 && <span className="text-[9px] text-slate-600 font-bold">누적 {auditor.totalCount}</span>}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                ))}
-                                {auditorRanking.length === 0 && (
-                                    <p className="text-center text-slate-600 py-8 font-bold">감사 권한 보유 사원이 없습니다.</p>
                                 )}
-                            </div>
+                            </>)}
                         </div>
                     )}
 
