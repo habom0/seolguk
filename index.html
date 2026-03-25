@@ -45,6 +45,11 @@
         .input-base { background: var(--bg-sub); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.875rem 1rem; outline: none; width: 100%; transition: 0.2s; color: var(--text-main); font-family: inherit; font-weight: 700; }
         .input-base:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
         .input-base::placeholder { color: var(--text-muted); }
+        input[type="date"] { color-scheme: dark; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(2) hue-rotate(185deg); cursor: pointer; opacity: 0.7; }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+        body.light-mode input[type="date"] { color-scheme: light; }
+        body.light-mode input[type="date"]::-webkit-calendar-picker-indicator { filter: none; opacity: 0.6; }
         .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 0.875rem; transition: 0.2s; cursor: pointer; font-weight: 800; border: none; font-family: inherit; }
         .btn-blue { background: #2563eb; color: #fff !important; }
         .btn-blue:hover { background: #1d4ed8; }
@@ -206,6 +211,51 @@
         /* Light mode — role buttons (unselected state) */
         body.light-mode .lm-content .role-btn-inactive { background: #e2e8f0 !important; color: #334155 !important; border-color: #cbd5e1 !important; }
         body.light-mode .lm-content .role-btn-inactive:hover { border-color: #94a3b8 !important; color: #0f172a !important; }
+
+        /* Light mode — blacklist specific colors */
+        body.light-mode .lm-content .bg-red-950\/15 { background-color: rgba(254,226,226,0.5) !important; }
+        body.light-mode .lm-content .bg-red-950\/25 { background-color: rgba(254,226,226,0.6) !important; }
+        body.light-mode .lm-content .bg-orange-950\/10 { background-color: rgba(255,237,213,0.5) !important; }
+        body.light-mode .lm-content .bg-yellow-950\/10 { background-color: rgba(254,252,232,0.5) !important; }
+        body.light-mode .lm-content .bg-purple-950\/15 { background-color: rgba(243,232,255,0.5) !important; }
+        body.light-mode .lm-content .bg-green-900\/20 { background-color: rgba(220,252,231,0.5) !important; }
+        body.light-mode .lm-content .bg-green-900\/25 { background-color: rgba(220,252,231,0.6) !important; }
+        body.light-mode .lm-content .bg-red-900\/20 { background-color: rgba(254,226,226,0.4) !important; }
+        body.light-mode .lm-content .bg-red-900\/30 { background-color: rgba(254,226,226,0.5) !important; }
+        body.light-mode .lm-content .bg-slate-900\/40 { background-color: rgba(248,250,252,0.9) !important; }
+        body.light-mode .lm-content .bg-slate-900\/60 { background-color: rgba(248,250,252,0.95) !important; }
+        body.light-mode .lm-content .border-red-800\/40 { border-color: rgba(220,38,38,0.3) !important; }
+        body.light-mode .lm-content .border-red-700\/30 { border-color: rgba(185,28,28,0.25) !important; }
+        body.light-mode .lm-content .border-orange-600\/40 { border-color: rgba(234,88,12,0.3) !important; }
+        body.light-mode .lm-content .border-yellow-600\/40 { border-color: rgba(202,138,4,0.3) !important; }
+        body.light-mode .lm-content .border-purple-700\/40 { border-color: rgba(126,34,206,0.25) !important; }
+        body.light-mode .lm-content .border-green-700\/30 { border-color: rgba(21,128,61,0.25) !important; }
+        body.light-mode .lm-content .border-red-900\/40 { border-color: rgba(127,29,29,0.2) !important; }
+        body.light-mode .lm-content .border-red-900\/30 { border-color: rgba(127,29,29,0.15) !important; }
+        body.light-mode .lm-content .border-slate-700\/50 { border-color: #cbd5e1 !important; }
+        body.light-mode .lm-content .text-orange-400 { color: #ea580c !important; }
+        body.light-mode .lm-content .text-purple-400 { color: #9333ea !important; }
+        body.light-mode .lm-content .text-red-300 { color: #dc2626 !important; }
+        body.light-mode .lm-content .text-green-700 { color: #15803d !important; }
+        body.light-mode .lm-content .text-slate-200 { color: #334155 !important; }
+        body.light-mode .lm-content .text-slate-300 { color: #475569 !important; }
+        body.light-mode .lm-content .text-slate-700 { color: #94a3b8 !important; }
+        body.light-mode .lm-content .border-green-800\/30 { border-color: rgba(22,101,52,0.2) !important; }
+        body.light-mode .lm-content .bg-green-900\/10 { background-color: rgba(220,252,231,0.4) !important; }
+        body.light-mode .lm-content .divide-slate-700 > * { border-color: #cbd5e1 !important; }
+        body.light-mode .lm-content .border-t { border-color: #e2e8f0 !important; }
+
+        /* Light mode — AuditBlacklistTab */
+        body.light-mode .lm-content .bg-red-700 { background-color: #dc2626 !important; color: #fff !important; }
+        body.light-mode .lm-content .bg-red-700:hover { background-color: #b91c1c !important; }
+        body.light-mode .lm-content .bg-red-700\/40 { background-color: rgba(220,38,38,0.2) !important; }
+        body.light-mode .lm-content .hover\:bg-red-700\/40:hover { background-color: rgba(220,38,38,0.25) !important; }
+        body.light-mode .lm-content .bg-green-700 { background-color: #15803d !important; color: #fff !important; }
+        body.light-mode .lm-content .bg-green-700:hover { background-color: #166534 !important; }
+        body.light-mode .lm-content .text-red-500 { color: #dc2626 !important; }
+        body.light-mode .lm-content .hover\:text-red-300:hover { color: #b91c1c !important; }
+        body.light-mode .lm-content .bg-red-900\/20 * { color: inherit; }
+        body.light-mode .lm-content .border-red-600\/50 { border-color: rgba(220,38,38,0.4) !important; }
     </style>
 </head>
 <body>
@@ -350,6 +400,7 @@
             const [activeTab, setActiveTab] = useState('dashboard');
             const [records, setRecords] = useState([]);
             const [allUsers, setAllUsers] = useState([]);
+            const [blacklist, setBlacklist] = useState([]);
             const [config, setConfig] = useState({ weekStartDay: 1, eventNotice: "" }); 
             const [weekOffset, setWeekOffset] = useState(0);
             const [authMode, setAuthMode] = useState('login');
@@ -396,6 +447,10 @@
                                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                     setRecords(list);
                 });
+                const blacklistCol = collection(db, 'artifacts', appId, 'public', 'data', 'blacklist');
+                const unsubBlacklist = onSnapshot(blacklistCol, (snap) => {
+                    setBlacklist(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                });
                 const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
                 const unsubConfig = onSnapshot(configDoc, (snap) => {
                     if (snap.exists()) setConfig(snap.data());
@@ -415,7 +470,7 @@
                         setNotifications(list);
                     });
                 }
-                return () => { unsubUsers(); unsubRecords(); unsubConfig(); unsubNotif(); };
+                return () => { unsubUsers(); unsubRecords(); unsubConfig(); unsubNotif(); unsubBlacklist(); };
             }, [fbUser]);
 
             const weekRange = useMemo(() => {
@@ -469,7 +524,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.2.8</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.3.0</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -547,7 +602,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.2.8</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.3.0</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -567,13 +622,15 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.2.8</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.3.0</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
                             <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
+                            <NavItem active={activeTab==='blacklist'} onClick={()=>setActiveTab('blacklist')} icon="shield-off" label="블랙리스트" color="slate"
+                                badge={(blacklist||[]).filter(b=>!b.releasedAt&&new Date(b.endDate)>=new Date()).length || 0} />
                             {(user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) && (
                                 <div className="mt-6 pt-4 border-t border-slate-800">
                                     <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>
@@ -605,10 +662,11 @@
 
                     {/* ── 메인 콘텐츠 ── */}
                     <main className="main-area lm-content">
-                        {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} pendingEditRecordId={pendingEditRecordId} clearPendingEdit={()=>setPendingEditRecordId(null)} />}
+                        {activeTab === 'dashboard' && <DashboardView user={user} records={records} config={config} showToast={showToast} weekRange={weekRange} notifications={notifications} onOpenNotif={()=>setShowNotifModal(true)} pendingEditRecordId={pendingEditRecordId} clearPendingEdit={()=>setPendingEditRecordId(null)} blacklist={blacklist} />}
                         {activeTab === 'ledger' && <LedgerView records={records} range={weekRange} offset={weekOffset} setOffset={setWeekOffset} allRecords={records} allUsers={allUsers} config={config} />}
                         {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} config={config} />}
-                        {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} />}
+                        {activeTab === 'blacklist' && <BlacklistView blacklist={blacklist} user={user} showToast={showToast} />}
+                        {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} blacklist={blacklist} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
                         {activeTab === 'mypage' && <MyPageView user={user} setUser={setUser} showToast={showToast} />}
                     </main>
@@ -620,6 +678,7 @@
                                 { tab:'dashboard', icon:'layout-dashboard', label:'대시보드' },
                                 { tab:'ledger',    icon:'clipboard-list',  label:'장부'     },
                                 { tab:'ranking',   icon:'trophy',           label:'랭킹'     },
+                                { tab:'blacklist', icon:'shield-off',       label:'블랙'     },
                                 ...(( user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) ? [{ tab:'audit', icon:'shield-check', label:'감사' }] : []),
                                 ...(user.role === ROLES.ADMIN    ? [{ tab:'admin', icon:'settings',     label:'설정'  }] : []),
                                 { tab:'mypage', icon:'user-cog', label:'내 설정' },
@@ -723,7 +782,7 @@
         );
 
         // --- Dashboard View ---
-        function DashboardView({ user, records, config, showToast, weekRange, notifications, onOpenNotif, pendingEditRecordId, clearPendingEdit }) {
+        function DashboardView({ user, records, config, showToast, weekRange, notifications, onOpenNotif, pendingEditRecordId, clearPendingEdit, blacklist }) {
             const items = getEffectiveItems(config);
             const itemKeys = Object.keys(items);
             const initialForm = { buyerSn: '', buyerNickname: '', note: '', ...Object.fromEntries(itemKeys.map(k=>[k,0])) };
@@ -806,11 +865,19 @@
             const debounceRef = React.useRef(null);
 
             // 오늘 판매건에서 중복 구매 확인 (debounce)
-            const [dupCheck, setDupCheck] = useState(null); // null | { found: bool, recs: [] }
+            const [dupCheck, setDupCheck] = useState(null);
             const checkDuplicate = (nickname, sn) => {
                 if (debounceRef.current) clearTimeout(debounceRef.current);
                 if (!nickname && !sn) { setDupCheck(null); return; }
                 debounceRef.current = setTimeout(() => {
+                    // 블랙리스트 확인
+                    const now = new Date();
+                    const blEntry = (blacklist||[]).find(b =>
+                        (sn && b.buyerSn === sn) || (nickname && b.buyerNickname === nickname)
+                    );
+                    const isBlacklisted = blEntry && new Date(blEntry.endDate) >= now;
+
+                    // 오늘 중복 구매 확인
                     const today = new Date(); today.setHours(0,0,0,0);
                     const todayEnd = new Date(today); todayEnd.setDate(today.getDate()+1);
                     const todayRecs = records.filter(r => {
@@ -820,7 +887,7 @@
                     const matched = todayRecs.filter(r =>
                         (sn && r.buyerSn === sn) || (nickname && r.buyerNickname === nickname)
                     );
-                    setDupCheck({ found: matched.length > 0, recs: matched });
+                    setDupCheck({ found: matched.length > 0, recs: matched, isBlacklisted, blEntry });
                 }, 300);
             };
 
@@ -940,13 +1007,24 @@
                                     </div>
                                     <div>
                                         <label className="text-sm text-slate-400 block mb-2 font-heavy ml-1">구매자 고유번호</label>
-                                        <input ref={buyerSnRef} type="text" className={`input-base font-bold text-lg ${dupCheck?.found ? 'border-orange-500 ring-2 ring-orange-500/20' : ''}`} value={form.buyerSn}
+                                        <input ref={buyerSnRef} type="text" className={`input-base font-bold text-lg ${dupCheck?.isBlacklisted ? 'border-red-500 ring-2 ring-red-500/20' : dupCheck?.found ? 'border-orange-500 ring-2 ring-orange-500/20' : ''}`} value={form.buyerSn}
                                             onChange={e=>{ const v=e.target.value.replace(/[^0-9]/g,''); setForm({...form, buyerSn: v}); checkDuplicate(form.buyerNickname, v); }}
                                             required placeholder="0000" />
                                     </div>
                                 </div>
-                                {/* 중복 구매 경고 — 입력란 바로 아래 */}
-                                {dupCheck?.found && (
+                                {/* 블랙리스트 경고 — 최우선 표시 */}
+                                {dupCheck?.isBlacklisted && (
+                                    <div className="flex items-start gap-2 bg-red-900/30 border-2 border-red-500/60 rounded-xl px-3 py-3 -mt-2">
+                                        <Icon name="shield-off" size={16} className="text-red-400 flex-shrink-0 mt-0.5"/>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-red-300 font-heavy text-sm">🚫 블랙리스트 등재 고객 — 판매 불가</p>
+                                            <p className="text-red-400 text-xs font-bold mt-1">{dupCheck.blEntry.buyerNickname} (#{dupCheck.blEntry.buyerSn}) · {dupCheck.blEntry.startDate} ~ {dupCheck.blEntry.endDate}</p>
+                                            <p className="text-red-500 text-xs font-bold mt-0.5">사유: {dupCheck.blEntry.reason}</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {/* 중복 구매 경고 */}
+                                {dupCheck?.found && !dupCheck?.isBlacklisted && (
                                     <div className="flex items-start gap-2 bg-orange-900/20 border border-orange-600/40 rounded-xl px-3 py-2.5 -mt-2">
                                         <Icon name="alert-triangle" size={14} className="text-orange-400 flex-shrink-0 mt-0.5"/>
                                         <div className="flex-1 min-w-0">
@@ -960,10 +1038,10 @@
                                         </div>
                                     </div>
                                 )}
-                                {dupCheck && !dupCheck.found && (form.buyerNickname || form.buyerSn) && (
+                                {dupCheck && !dupCheck.found && !dupCheck.isBlacklisted && (form.buyerNickname || form.buyerSn) && (
                                     <div className="flex items-center gap-2 bg-green-900/15 border border-green-700/30 rounded-xl px-3 py-2 -mt-2">
                                         <Icon name="check-circle" size={13} className="text-green-400 flex-shrink-0"/>
-                                        <span className="text-green-400 font-heavy text-xs">오늘 구매 이력 없음</span>
+                                        <span className="text-green-400 font-heavy text-xs">오늘 구매 이력 없음 · 블랙리스트 미등재</span>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -1554,7 +1632,7 @@
         }
 
         // --- Audit View ---
-        function AuditView({ records, user, allUsers, showToast, config, sendNotification }) {
+        function AuditView({ records, user, allUsers, showToast, config, sendNotification, blacklist }) {
             const [tab, setAuditTab] = useState('queue');
             const [viewItem, setViewItem] = useState(null);
             const [rsnModal, setRsnModal] = useState(null);
@@ -1565,6 +1643,7 @@
             const [editPenalty, setEditPenalty] = useState(0);
             const [historyFilter, setHistoryFilter] = useState('all'); 
             const [historyOffset, setHistoryOffset] = useState(0);
+            const [historyPage, setHistoryPage] = useState(0);
             const [deleteConfirm, setDeleteConfirm] = useState(null);
             const [userSalesModal, setUserSalesModal] = useState(null);
             const [salesTab, setSalesTab] = useState('all');
@@ -1598,6 +1677,24 @@
                     return matchRange && matchFilter;
                 });
             }, [records, historyRange, historyFilter]);
+
+            useEffect(() => { setHistoryPage(0); }, [historyRange, historyFilter]);
+
+            // 날짜별 그룹핑
+            const historyByDate = useMemo(() => {
+                const groups = {};
+                history.forEach(r => {
+                    const d = formatDate(r.auditedAt || r.timestamp);
+                    if (!groups[d]) groups[d] = [];
+                    groups[d].push(r);
+                });
+                // 최신 날짜 순 정렬
+                return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+            }, [history]);
+
+            const historyTotalPages = historyByDate.length;
+            const currentDateGroup = historyByDate[historyPage];
+            const historyPaged = currentDateGroup ? currentDateGroup[1] : [];
 
             const warningSortedUsers = useMemo(() => {
                 const result = allUsers
@@ -1640,6 +1737,10 @@
                         <button onClick={()=>setAuditTab('history')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>처리 기록</button>
                         <button onClick={()=>setAuditTab('warning')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'warning' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>경고 현황</button>
                         <button onClick={()=>setAuditTab('team')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'team' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>감사팀 랭킹</button>
+                        <button onClick={()=>setAuditTab('blacklist')} className={`px-6 py-3 rounded-2xl transition-all font-bold flex items-center gap-2 ${tab === 'blacklist' ? 'bg-red-700 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                            🚫 블랙리스트 관리
+                            {(blacklist||[]).filter(b=>new Date(b.endDate)>=new Date()&&!b.releasedAt).length > 0 && <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">{(blacklist||[]).filter(b=>new Date(b.endDate)>=new Date()&&!b.releasedAt).length}</span>}
+                        </button>
                     </div>
 
                     {tab === 'queue' && (
@@ -1772,8 +1873,9 @@
                                     <table className="w-full text-left font-heavy">
                                         <thead className="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider font-heavy"><tr className="border-b border-slate-700"><th className="px-5 py-4 whitespace-nowrap">처리일</th><th className="px-5 py-4 whitespace-nowrap">판매자</th><th className="px-5 py-4 whitespace-nowrap">구매자</th><th className="px-5 py-4 whitespace-nowrap">판매 품목</th><th className="px-5 py-4 text-right whitespace-nowrap">매출액</th><th className="px-5 py-4 text-right whitespace-nowrap text-blue-400">공계 입금</th><th className="px-5 py-4 text-center whitespace-nowrap">상태</th><th className="px-5 py-4 text-center whitespace-nowrap">감사관</th><th className="px-5 py-4 text-center whitespace-nowrap">상세</th></tr></thead>
                                         <tbody className="divide-y divide-slate-800 text-white font-heavy">
-                                            {history.map(r => {
+                                            {(() => {
                                                 const effectiveItems = getEffectiveItems(config);
+                                                return historyPaged.map(r => {
                                                 const itemSummary = Object.keys(effectiveItems).filter(k => parseInt(r[k]) > 0).map(k => `${effectiveItems[k].emoji}${r[k]}`).join(' ');
                                                 return (
                                                 <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
@@ -1798,11 +1900,31 @@
                                                     </td>
                                                 </tr>
                                                 );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            });
+                                            })()}
+                                            </tbody>
+                                        </table>
+                                    </div>
                             </div>
+                            {historyTotalPages > 1 && (
+                                <div className="flex items-center justify-between px-2">
+                                    <span className="text-xs text-slate-500 font-bold">
+                                        {currentDateGroup ? `${currentDateGroup[0]} (${historyPaged.length}건)` : ''}
+                                        <span className="ml-2 text-slate-600">전체 {history.length}건</span>
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={()=>setHistoryPage(p=>Math.max(p-1,0))} disabled={historyPage===0}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-heavy transition-all ${historyPage===0 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}>
+                                            <Icon name="chevron-left" size={14} className="inline"/> 이전날
+                                        </button>
+                                        <span className="text-xs text-slate-400 font-heavy">{historyPage+1} / {historyTotalPages}</span>
+                                        <button onClick={()=>setHistoryPage(p=>Math.min(p+1,historyTotalPages-1))} disabled={historyPage===historyTotalPages-1}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-heavy transition-all ${historyPage===historyTotalPages-1 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}>
+                                            다음날 <Icon name="chevron-right" size={14} className="inline"/>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -1958,6 +2080,8 @@
                             </>)}
                         </div>
                     )}
+
+                    {tab === 'blacklist' && <AuditBlacklistTab blacklist={blacklist} user={user} showToast={showToast}/>}
 
                     {rsnModal && (
                         <Modal title="보류 사유 및 경고 설정" onClose={()=>setRsnModal(null)}>
@@ -2338,7 +2462,6 @@
         function RankingView({ records, allUsers, config }) {
             const [weekOffset, setWeekOffset] = useState(0);
 
-            // 주간 범위 계산 (config.weekStartDay 기준)
             const weekRange = useMemo(() => {
                 const now = new Date();
                 now.setDate(now.getDate() + (weekOffset * 7));
@@ -2355,7 +2478,6 @@
             const isCurrentWeek = weekOffset === 0;
             const weekLabel = isCurrentWeek ? '이번 주' : weekOffset === -1 ? '지난 주' : `${Math.abs(weekOffset)}주 전`;
 
-            // 집계: 이벤트용·가입신청 제외, 나머지 모든 권한(사원·감사팀·관리자) 포함
             const data = useMemo(() => {
                 const excludeUids = new Set(
                     allUsers.filter(u => u.role === ROLES.EVENT || u.role === ROLES.PENDING).map(u => u.uid)
@@ -2364,7 +2486,7 @@
                 records
                     .filter(r => {
                         if (excludeUids.has(r.sellerUid)) return false;
-                        if (r.status === 'pending' && r.auditReason) return false; // 보류건 제외
+                        if (r.status === 'pending' && r.auditReason) return false;
                         const d = new Date(r.timestamp);
                         return d >= weekRange.start && d <= weekRange.end;
                     })
@@ -2378,52 +2500,34 @@
                 return Object.values(s).sort((a, b) => b.count - a.count);
             }, [records, allUsers, weekRange]);
 
-            const podium = [data[1], data[0], data[2]]; // 2위, 1위, 3위 순서로 시상대
+            const podium = [data[1], data[0], data[2]];
 
             return (
                 <div className="space-y-8 font-bold">
-                    {/* 헤더 */}
                     <div className="text-center space-y-3 py-4">
-                        <div className="inline-block bg-yellow-500/10 p-4 rounded-2xl mb-2 animate-pulse font-heavy">
-                            <Icon name="award" size={48} className="text-yellow-500"/>
-                        </div>
+                        <div className="inline-block bg-yellow-500/10 p-4 rounded-2xl mb-2 animate-pulse font-heavy"><Icon name="award" size={48} className="text-yellow-500"/></div>
                         <h2 className="text-3xl text-white font-heavy uppercase tracking-tighter italic">설국 판매 명예의 전당</h2>
-                        {/* 주간 네비게이션 */}
                         <div className="flex items-center justify-center gap-4 mt-2">
-                            <button onClick={()=>setWeekOffset(w=>w-1)} className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
-                                <Icon name="chevron-left" size={20}/>
-                            </button>
+                            <button onClick={()=>setWeekOffset(w=>w-1)} className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"><Icon name="chevron-left" size={20}/></button>
                             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-6 py-2.5 min-w-[240px] justify-center">
                                 <span className={`text-sm font-heavy ${isCurrentWeek ? 'text-blue-400' : 'text-slate-400'}`}>{weekLabel}</span>
-                                <span className="text-slate-600 text-xs font-bold">
-                                    {weekRange.start.toLocaleDateString('ko-KR', {month:'short', day:'numeric'})} ~ {weekRange.end.toLocaleDateString('ko-KR', {month:'short', day:'numeric'})}
-                                </span>
+                                <span className="text-slate-600 text-xs font-bold">{weekRange.start.toLocaleDateString('ko-KR',{month:'short',day:'numeric'})} ~ {weekRange.end.toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
                             </div>
-                            <button onClick={()=>setWeekOffset(w=>Math.min(w+1, 0))} disabled={isCurrentWeek}
-                                className={`p-2 rounded-xl transition-all ${isCurrentWeek ? 'opacity-30 cursor-not-allowed bg-slate-800 text-slate-600' : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'}`}>
-                                <Icon name="chevron-right" size={20}/>
-                            </button>
+                            <button onClick={()=>setWeekOffset(w=>Math.min(w+1,0))} disabled={isCurrentWeek} className={`p-2 rounded-xl transition-all ${isCurrentWeek ? 'opacity-30 cursor-not-allowed bg-slate-800 text-slate-600' : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'}`}><Icon name="chevron-right" size={20}/></button>
                         </div>
                     </div>
-
                     {data.length === 0 ? (
-                        <div className="card text-center py-16 text-slate-500 font-bold">
-                            <Icon name="inbox" size={40} className="mx-auto mb-3 opacity-30"/>
-                            <p>{weekLabel} 판매 기록이 없습니다.</p>
-                        </div>
-                    ) : (
-                    <>
-                        {/* 시상대 (1~3위) */}
+                        <div className="card text-center py-16 text-slate-500 font-bold"><Icon name="inbox" size={40} className="mx-auto mb-3 opacity-30"/><p>{weekLabel} 판매 기록이 없습니다.</p></div>
+                    ) : (<>
                         <div className="flex flex-wrap justify-center items-end gap-4 md:gap-8 pb-6 font-heavy">
                             {podium.map((item, i) => {
                                 if (!item) return <div key={i} className="w-full max-w-[180px]"/>;
                                 const cfgs = [
-                                    { color:'border-slate-400',  bg:'bg-slate-400/5',  h:'h-44', rank:'2위', icon:'🥈', textColor:'text-slate-400'  },
+                                    { color:'border-slate-400', bg:'bg-slate-400/5', h:'h-44', rank:'2위', icon:'🥈', textColor:'text-slate-400' },
                                     { color:'border-yellow-500', bg:'bg-yellow-500/8', h:'h-56', rank:'1위', icon:'👑', textColor:'text-yellow-500' },
-                                    { color:'border-amber-700',  bg:'bg-amber-700/5',  h:'h-40', rank:'3위', icon:'🥉', textColor:'text-amber-700'  },
+                                    { color:'border-amber-700', bg:'bg-amber-700/5', h:'h-40', rank:'3위', icon:'🥉', textColor:'text-amber-700' },
                                 ];
                                 const cfg = cfgs[i];
-                                const realIdx = i === 0 ? 1 : i === 1 ? 0 : 2;
                                 return (
                                     <div key={i} className={`w-full max-w-[180px] ${cfg.h} ${cfg.bg} border-t-4 ${cfg.color} rounded-t-3xl flex flex-col items-center justify-center relative shadow-xl transition-all hover:-translate-y-1`}>
                                         <div className="absolute -top-6 text-4xl">{cfg.icon}</div>
@@ -2435,8 +2539,6 @@
                                 );
                             })}
                         </div>
-
-                        {/* 전체 순위 테이블 */}
                         <div className="card p-0 overflow-hidden shadow-2xl">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left font-heavy">
@@ -2444,31 +2546,17 @@
                                         <tr className="border-b border-slate-800">
                                             <th className="px-5 py-4 whitespace-nowrap">순위</th>
                                             <th className="px-5 py-4 whitespace-nowrap">사원명</th>
-                                            <th className="px-5 py-4 text-center whitespace-nowrap">판매 건수</th>
-                                            <th className="px-5 py-4 text-right whitespace-nowrap">총 매출액</th>
-                                            <th className="px-5 py-4 text-right text-blue-400 whitespace-nowrap">공계 입금액</th>
+                                            <th className="px-5 py-4 text-center whitespace-nowrap">판매건수</th>
+                                            <th className="px-5 py-4 text-right whitespace-nowrap">총 매출</th>
+                                            <th className="px-5 py-4 text-right whitespace-nowrap">총 입금액</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800/50 text-white font-heavy">
+                                    <tbody className="divide-y divide-slate-800 text-white font-heavy">
                                         {data.map((item, idx) => (
-                                            <tr key={idx} className={`${idx < 3 ? 'bg-blue-600/[0.02]' : ''} hover:bg-slate-800/50 transition-colors`}>
-                                                <td className="px-5 py-4">
-                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black
-                                                        ${idx === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20'
-                                                        : idx === 1 ? 'bg-slate-400 text-black'
-                                                        : idx === 2 ? 'bg-amber-700 text-white'
-                                                        : 'bg-slate-800 text-slate-500'}`}>
-                                                        {idx+1}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-4 whitespace-nowrap">
-                                                    <div className="text-base font-heavy">{item.name}</div>
-                                                    <div className="text-[10px] text-slate-600 font-bold">#{item.sn}</div>
-                                                </td>
-                                                <td className="px-5 py-4 text-center whitespace-nowrap">
-                                                    <span className="text-blue-400 font-black text-2xl">{item.count}</span>
-                                                    <span className="text-[10px] text-slate-600 ml-1 uppercase font-bold">건</span>
-                                                </td>
+                                            <tr key={idx} className={`transition-colors ${idx<3?'hover:bg-yellow-900/5':'hover:bg-slate-800/50'}`}>
+                                                <td className="px-5 py-4 whitespace-nowrap"><div className={`w-9 h-9 rounded-xl flex items-center justify-center font-heavy text-sm ${idx===0?'bg-yellow-500 text-black shadow-lg':idx===1?'bg-slate-400 text-black':idx===2?'bg-amber-700 text-white':'bg-slate-800 text-slate-500'}`}>{idx+1}</div></td>
+                                                <td className="px-5 py-4 whitespace-nowrap"><div className="font-heavy text-base">{item.name}</div><div className="text-[10px] text-slate-600 font-bold">#{item.sn}</div></td>
+                                                <td className="px-5 py-4 text-center whitespace-nowrap"><span className="text-blue-400 font-black text-2xl">{item.count}</span><span className="text-[10px] text-slate-600 ml-1 uppercase font-bold">건</span></td>
                                                 <td className="px-5 py-4 text-right font-heavy text-base whitespace-nowrap">{formatKRW(item.total)}</td>
                                                 <td className="px-5 py-4 text-right text-blue-400 font-heavy text-base whitespace-nowrap">{formatKRW(item.deposit)}</td>
                                             </tr>
@@ -2477,12 +2565,341 @@
                                 </table>
                             </div>
                         </div>
-                    </>
+                    </>)}
+                </div>
+            );
+        }
+
+        // --- Audit Blacklist Tab ---
+        function AuditBlacklistTab({ blacklist, user, showToast }) {
+            const [blForm, setBlForm] = useState({ buyerSn:'', buyerNickname:'', reason:'', startDate:'', endDate:'' });
+            const [blSaving, setBlSaving] = useState(false);
+            const [releaseModal, setReleaseModal] = useState(null);
+            const [releaseReason, setReleaseReason] = useState('');
+
+            const now = new Date();
+            const active   = (blacklist||[]).filter(b => !b.releasedAt && new Date(b.endDate) >= now);
+            const expired  = (blacklist||[]).filter(b => !b.releasedAt && new Date(b.endDate) < now);
+            const released = (blacklist||[]).filter(b => b.releasedAt);
+
+            // 일수 자동 계산
+            const calcDays = (start, end) => {
+                if (!start || !end) return null;
+                const d = Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
+                return d > 0 ? d : null;
+            };
+            const formDays = calcDays(blForm.startDate, blForm.endDate);
+
+            const saveBlacklist = async () => {
+                if (!blForm.buyerSn || !blForm.buyerNickname || !blForm.reason || !blForm.startDate || !blForm.endDate)
+                    return alert('모든 항목을 입력하세요.');
+                setBlSaving(true);
+                const id = 'bl_' + Date.now();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blacklist', id), {
+                    ...blForm, registeredBy: user.nickname, createdAt: new Date().toISOString()
+                });
+                setBlForm({ buyerSn:'', buyerNickname:'', reason:'', startDate:'', endDate:'' });
+                setBlSaving(false);
+                showToast('블랙리스트에 등재되었습니다.');
+            };
+
+            const doRelease = async () => {
+                if (!releaseReason.trim()) return alert('해제 사유를 입력하세요.');
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blacklist', releaseModal.id), {
+                    releasedAt: new Date().toISOString(),
+                    releasedBy: user.nickname,
+                    releaseReason: releaseReason.trim(),
+                });
+                setReleaseModal(null); setReleaseReason('');
+                showToast('블랙리스트가 해제되었습니다.');
+            };
+
+            const BLCard = ({b, showRelease}) => {
+                const days = calcDays(b.startDate, b.endDate);
+                return (
+                    <div className={`card space-y-2 ${showRelease ? 'border border-red-800/40 bg-red-950/15' : 'border border-slate-800 opacity-60'}`}>
+                        <div className="flex flex-wrap justify-between items-start gap-2">
+                            <div className="flex items-center gap-2">
+                                <Icon name="shield-off" size={15} className={showRelease ? 'text-red-500' : 'text-slate-600'}/>
+                                <span className={`font-heavy text-base ${showRelease ? 'text-white' : 'text-slate-400'}`}>{b.buyerNickname}</span>
+                                <span className="text-slate-500 text-xs">#{b.buyerSn}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-xs font-heavy px-2.5 py-1 rounded-xl border ${showRelease ? 'bg-red-900/30 border-red-700/30 text-red-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
+                                    {b.startDate} ~ {b.endDate}{days ? ` (${days}일)` : ''}
+                                </span>
+                                {showRelease && (
+                                    <button onClick={()=>{setReleaseModal(b);setReleaseReason('');}}
+                                        className="px-3 py-1.5 bg-green-900/20 hover:bg-green-700/30 text-green-400 border border-green-700/30 rounded-xl text-xs font-heavy flex items-center gap-1 transition-all">
+                                        <Icon name="unlock" size={12}/> 해제
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <p className={`text-sm font-bold leading-relaxed pl-5 ${showRelease ? 'text-slate-300' : 'text-slate-600'}`}>{b.reason}</p>
+                        {b.releasedAt && (
+                            <div className="pl-5 flex items-center gap-2 text-xs text-green-600 font-bold">
+                                <Icon name="unlock" size={11}/> 해제: {b.releasedBy} — {b.releaseReason} ({formatDate(b.releasedAt)})
+                            </div>
+                        )}
+                        <p className="text-[10px] text-slate-700 font-bold pl-5">등록: {b.registeredBy} · {formatDate(b.createdAt)}</p>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="space-y-6">
+                    {/* 등록 폼 */}
+                    <div className="card shadow-2xl border border-red-900/30 space-y-5">
+                        <h3 className="text-lg font-heavy text-red-400 flex items-center gap-2"><Icon name="shield-off" size={18}/> 블랙리스트 등재</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-500 font-heavy uppercase">닉네임</label>
+                                <input type="text" className="input-base font-bold" value={blForm.buyerNickname}
+                                    onChange={e=>setBlForm({...blForm, buyerNickname:e.target.value})} placeholder="구매자 닉네임"/>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-500 font-heavy uppercase">고유번호</label>
+                                <input type="text" className="input-base font-bold" value={blForm.buyerSn}
+                                    onChange={e=>setBlForm({...blForm, buyerSn:e.target.value.replace(/[^0-9]/g,'')})} placeholder="0000"/>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-500 font-heavy uppercase">시작일</label>
+                                <input type="date" className="input-base font-bold" value={blForm.startDate}
+                                    onChange={e=>setBlForm({...blForm, startDate:e.target.value})}/>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-slate-500 font-heavy uppercase">종료일</label>
+                                <input type="date" className="input-base font-bold" value={blForm.endDate}
+                                    onChange={e=>setBlForm({...blForm, endDate:e.target.value})}/>
+                            </div>
+                            <div className="col-span-2">
+                                <div className={`rounded-xl px-4 py-3 border text-center font-heavy ${formDays ? 'bg-red-900/20 border-red-700/30 text-red-300' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                                    {formDays ? `🚫 총 ${formDays}일 제재` : '시작일과 종료일을 입력하면 기간이 표시됩니다'}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-slate-500 font-heavy uppercase">등재 사유</label>
+                            <textarea className="input-base font-bold h-24 resize-none" value={blForm.reason}
+                                onChange={e=>setBlForm({...blForm, reason:e.target.value})}
+                                placeholder="블랙리스트 등재 사유를 상세히 기재하세요."/>
+                        </div>
+                        <button onClick={saveBlacklist} disabled={blSaving}
+                            className="btn bg-red-700 hover:bg-red-600 text-white w-full py-3.5 font-heavy flex items-center justify-center gap-2">
+                            <Icon name={blSaving?'loader':'shield-off'} size={16}/>
+                            {blSaving ? '등재 중...' : '블랙리스트 등재'}
+                        </button>
+                    </div>
+
+                    {/* 활성 */}
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-heavy text-red-400 uppercase tracking-widest flex items-center gap-2"><Icon name="alert-circle" size={14}/> 현재 적용 중 ({active.length}명)</h3>
+                        {active.length === 0
+                            ? <div className="card text-center py-8 text-slate-600 font-bold">현재 블랙리스트 등재 고객이 없습니다.</div>
+                            : active.map(b => <BLCard key={b.id} b={b} showRelease={true}/>)}
+                    </div>
+
+                    {/* 만료 */}
+                    {expired.length > 0 && (
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-heavy text-slate-600 uppercase tracking-widest">기간 만료 ({expired.length}명)</h3>
+                            {expired.map(b => <BLCard key={b.id} b={b} showRelease={false}/>)}
+                        </div>
+                    )}
+
+                    {/* 해제된 기록 */}
+                    {released.length > 0 && (
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-heavy text-green-700 uppercase tracking-widest flex items-center gap-2"><Icon name="unlock" size={13}/> 해제된 블랙리스트 ({released.length}명)</h3>
+                            {released.map(b => <BLCard key={b.id} b={b} showRelease={false}/>)}
+                        </div>
+                    )}
+
+                    {/* 해제 모달 */}
+                    {releaseModal && (
+                        <Modal title="🔓 블랙리스트 해제" onClose={()=>{setReleaseModal(null);setReleaseReason('');}}>
+                            <div className="space-y-5 font-heavy">
+                                <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-1">
+                                    <p className="text-white font-heavy">{releaseModal.buyerNickname} <span className="text-slate-500 text-sm">#{releaseModal.buyerSn}</span></p>
+                                    <p className="text-red-400 text-xs">{releaseModal.startDate} ~ {releaseModal.endDate}</p>
+                                    <p className="text-slate-400 text-sm">{releaseModal.reason}</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs text-slate-500 font-heavy uppercase">해제 사유 (필수)</label>
+                                    <textarea className="input-base font-bold h-24 resize-none" value={releaseReason}
+                                        onChange={e=>setReleaseReason(e.target.value)}
+                                        placeholder="예) 해제 비용 납부 완료 / 피해 당사자 합의 등"/>
+                                </div>
+                                <button onClick={doRelease} className="btn bg-green-700 hover:bg-green-600 text-white w-full py-4 font-heavy flex items-center justify-center gap-2">
+                                    <Icon name="unlock" size={16}/> 블랙리스트 해제
+                                </button>
+                            </div>
+                        </Modal>
                     )}
                 </div>
             );
         }
 
+        // --- Blacklist View ---
+        function BlacklistView({ blacklist, user, showToast }) {
+            const now = new Date();
+            const active   = (blacklist||[]).filter(b => !b.releasedAt && new Date(b.endDate) >= now);
+            const expired  = (blacklist||[]).filter(b => !b.releasedAt && new Date(b.endDate) < now);
+            const released = (blacklist||[]).filter(b => b.releasedAt);
+
+            const calcDays = (start, end) => {
+                if (!start || !end) return null;
+                const d = Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
+                return d > 0 ? d : null;
+            };
+
+            const RULES = [
+                { icon:'🚨', period:'7일', color:'border-orange-600/40 bg-orange-950/10', textColor:'text-orange-400',
+                  items:['허위콜 / 중복콜 / 사유 없는 콜','사유지 무단 침입','팩션 사업 물품 소량 개인거래','경미한 영업방해'] },
+                { icon:'⚠️', period:'14일', color:'border-yellow-600/40 bg-yellow-950/10', textColor:'text-yellow-400',
+                  items:['팩션원 대상 배드RP','사업장 내 팩션원 폭행','팩션 사업 물품 대량 개인거래','사유지 반복 침입 (2회 이상 경고 후 불응)','콜 후 잠수 / 지시 무시 후 도주','팩션 비하 발언'] },
+                { icon:'⛔', period:'15일', color:'border-red-700/40 bg-red-950/15', textColor:'text-red-400',
+                  items:['허위 정보 유포','팩션 혼란 조성 행위'] },
+                { icon:'💀', period:'30일', color:'border-red-900/60 bg-red-950/25', textColor:'text-red-300',
+                  items:['사업장 내 팩션원 살인','사유지 반복 침입 + 무기 사용','팩션 전체 비방 / 이미지 훼손','팩션에 막대한 피해를 주는 행위','팩션 판매 활동 방해','이중구매 (온라인 마켓 + 콜 구매)'] },
+                { icon:'👮', period:'관리자 처벌', color:'border-purple-700/40 bg-purple-950/15', textColor:'text-purple-400',
+                  items:['물품 500개 이상 개인거래'] },
+            ];
+
+            const POLICIES = [
+                { icon:'💰', label:'해제 비용', text:'1일당 10억' },
+                { icon:'📍', label:'해제 방법', text:'사유지 방문 후 고위직 문의 (영상 증거 필수)' },
+                { icon:'🚫', label:'해제 거부', text:'팩션 판단에 따라 거부 가능' },
+                { icon:'📋', label:'이의제기', text:'스태프를 통해 신청 가능' },
+                { icon:'⏱️', label:'기간 연장', text:'블랙리스트 기간 중 추가 피해 발생 시 연장 가능' },
+                { icon:'♾️', label:'영구 등재', text:'블랙 상태에서 지속적 콜 시 영구 블랙리스트 등재' },
+            ];
+
+            const EXCEPTIONS = [
+                { icon:'✅', text:'실수로 거래 발생 → 2시간 이내 고위직 신고 시 면제' },
+                { icon:'✅', text:'소매넣기 피해 → 12시간 이내 신고 + 영상 필수' },
+                { icon:'⚡', text:'블랙리스트 대상과 거래 시 → 거래 상대방도 7일 블랙 등재 (같은 조직 / 공무원 포함)' },
+            ];
+
+            return (
+                <div className="space-y-6 font-bold animate-fade-in">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="shield-off" className="text-red-500" size={24}/> 블랙리스트</h2>
+                        {active.length > 0 && <span className="bg-red-600 text-white text-xs font-heavy px-2.5 py-1 rounded-full">적용중 {active.length}명</span>}
+                    </div>
+
+                    {/* 현재 적용 중 */}
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-heavy text-red-400 uppercase tracking-widest flex items-center gap-2"><Icon name="alert-circle" size={14}/> 현재 적용 중 ({active.length}명)</h3>
+                        {active.length === 0 ? (
+                            <div className="card text-center py-10 text-slate-600 font-bold"><Icon name="check-circle" size={32} className="mx-auto mb-2 opacity-30"/>현재 블랙리스트 등재 고객이 없습니다.</div>
+                        ) : active.map(b => {
+                            const days = calcDays(b.startDate, b.endDate);
+                            return (
+                            <div key={b.id} className="card border border-red-800/40 bg-red-950/15 space-y-2.5">
+                                <div className="flex flex-wrap justify-between items-start gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Icon name="shield-off" size={16} className="text-red-500 flex-shrink-0"/>
+                                        <span className="text-white font-heavy text-lg">{b.buyerNickname}</span>
+                                        <span className="text-slate-500 text-sm font-bold">#{b.buyerSn}</span>
+                                    </div>
+                                    <span className="text-red-400 text-xs font-heavy bg-red-900/30 border border-red-700/30 px-2.5 py-1.5 rounded-xl">
+                                        {b.startDate} ~ {b.endDate}{days?` (${days}일)`:''}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-slate-200 font-bold leading-relaxed pl-6">{b.reason}</p>
+                                <p className="text-[10px] text-slate-600 font-bold pl-6">등록: {b.registeredBy} · {formatDate(b.createdAt)}</p>
+                            </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* 등재 사유 규정 — 카드 UI */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-heavy text-white flex items-center gap-2">❄️ 설국 블랙리스트 등재 사유 안내</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {RULES.map((r, i) => (
+                                <div key={i} className={`rounded-2xl border p-5 space-y-3 ${r.color}`}>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl w-9 h-9 flex items-center justify-center flex-shrink-0">{r.icon}</span>
+                                        <span className={`font-heavy text-lg ${r.textColor}`}>{r.period} 제재</span>
+                                    </div>
+                                    <ul className="space-y-2 pl-1">
+                                        {r.items.map((item, j) => (
+                                            <li key={j} className="text-sm text-slate-300 font-bold flex items-start gap-2">
+                                                <span className="text-slate-500 flex-shrink-0 mt-0.5">•</span>{item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* 블랙리스트 규정 + 예외/연관 처벌 — 하나의 보드, 구분선으로 분리 */}
+                        <div className="card border border-slate-700/50 space-y-5">
+                            {/* 블랙리스트 규정 */}
+                            <div className="space-y-3">
+                                <h4 className="text-base font-heavy text-slate-200 flex items-center gap-2"><span>🚫</span> 블랙리스트 규정</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    {POLICIES.map((p, i) => (
+                                        <div key={i} className="bg-slate-900/60 rounded-xl px-4 py-3 flex items-center gap-3 border border-slate-800">
+                                            <span className="text-xl w-8 h-8 flex items-center justify-center flex-shrink-0">{p.icon}</span>
+                                            <div>
+                                                <p className="text-xs text-slate-500 font-heavy uppercase mb-0.5">{p.label}</p>
+                                                <p className="text-sm text-slate-200 font-bold leading-snug">{p.text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-slate-700"/>
+
+                            {/* 예외/연관 처벌 */}
+                            <div className="space-y-3">
+                                <h4 className="text-base font-heavy text-slate-200 flex items-center gap-2"><span>📍</span> 예외 규정 / 연관 처벌</h4>
+                                <div className="space-y-2">
+                                    {EXCEPTIONS.map((e, i) => (
+                                        <div key={i} className="flex items-start gap-3 bg-slate-900/40 rounded-xl px-4 py-3 border border-slate-800">
+                                            <span className="text-lg w-6 flex-shrink-0 text-center">{e.icon}</span>
+                                            <p className="text-sm text-slate-300 font-bold leading-relaxed">{e.text}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-slate-600 font-bold">⚠️ 모든 규정은 상황에 따라 관리자 판단 하에 추가 조치가 이루어질 수 있습니다.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 만료/해제 기록 */}
+                    {(expired.length > 0 || released.length > 0) && (
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-heavy text-slate-600 uppercase tracking-widest">과거 기록</h3>
+                            {[...released, ...expired].map(b => {
+                                const days = calcDays(b.startDate, b.endDate);
+                                return (
+                                <div key={b.id} className="card border border-slate-800 opacity-60 space-y-1.5 py-3">
+                                    <div className="flex flex-wrap justify-between items-center gap-2">
+                                        <div>
+                                            <span className="text-slate-400 font-heavy">{b.buyerNickname}</span>
+                                            <span className="text-slate-600 text-xs ml-2">#{b.buyerSn}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-slate-600 text-xs">{b.startDate} ~ {b.endDate}{days?` (${days}일)`:''}</span>
+                                            {b.releasedAt && <span className="text-[10px] text-green-700 bg-green-900/20 border border-green-800/30 px-2 py-0.5 rounded-md font-bold">해제됨</span>}
+                                            {!b.releasedAt && <span className="text-[10px] text-slate-600 bg-slate-800 px-2 py-0.5 rounded-md font-bold">만료</span>}
+                                        </div>
+                                    </div>
+                                    {b.releasedAt && <p className="text-[10px] text-green-700 font-bold">해제: {b.releasedBy} — {b.releaseReason}</p>}
+                                </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        }
 
         // --- Admin/Audit Member Management View ---
         function AdminView({ allUsers, config, setConfig, currentUser, records, showToast }) {
