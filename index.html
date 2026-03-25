@@ -686,7 +686,8 @@
                             <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
                             <NavItem active={activeTab==='blacklist'} onClick={()=>setActiveTab('blacklist')} icon="shield-off" label="블랙리스트" color="slate"
-                                badge={(blacklist||[]).filter(b=>!b.releasedAt&&new Date(b.endDate)>=new Date()).length || 0} />
+                                badge={(blacklist||[]).filter(b=>!b.releasedAt&&new Date(b.endDate)>=new Date()).length || 0}
+                                badgeStyle="bg-slate-700 text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-tight border border-slate-600" />
                             {(user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) && (
                                 <div className="mt-6 pt-4 border-t border-slate-800">
                                     <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>
@@ -829,11 +830,11 @@
             );
         }
 
-        const NavItem = ({ active, onClick, icon, label, color = "blue", badge }) => (
+        const NavItem = ({ active, onClick, icon, label, color = "blue", badge, badgeStyle }) => (
             <button onClick={onClick} className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${active ? (color === 'indigo' ? 'bg-indigo-600' : color === 'slate' ? 'bg-slate-700' : 'bg-blue-600') + ' text-white shadow-lg' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}>
                 <Icon name={icon}/>
                 <span className="font-bold flex-1 text-left">{label}</span>
-                {badge > 0 && <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-tight">{badge}</span>}
+                {badge > 0 && <span className={badgeStyle || "bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-tight"}>{badge}</span>}
             </button>
         );
 
@@ -1840,7 +1841,6 @@
                         <button onClick={()=>setAuditTab('team')} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab === 'team' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>감사팀 랭킹</button>
                         <button onClick={()=>setAuditTab('blacklist')} className={`px-6 py-3 rounded-2xl transition-all font-bold flex items-center gap-2 ${tab === 'blacklist' ? 'bg-red-700 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
                             🚫 블랙리스트 관리
-                            {(blacklist||[]).filter(b=>new Date(b.endDate)>=new Date()&&!b.releasedAt).length > 0 && <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">{(blacklist||[]).filter(b=>new Date(b.endDate)>=new Date()&&!b.releasedAt).length}</span>}
                         </button>
                     </div>
 
