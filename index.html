@@ -2846,21 +2846,21 @@
             ];
 
             return (
-                <div className="space-y-6 font-bold animate-fade-in">
+                <div className="space-y-8 font-bold animate-fade-in">
                     <div className="flex items-center gap-3">
                         <h2 className="text-2xl text-white flex items-center gap-3 font-heavy"><Icon name="shield-off" className="text-red-500" size={24}/> 블랙리스트</h2>
                         {active.length > 0 && <span className="bg-red-600 text-white text-xs font-heavy px-2.5 py-1 rounded-full">적용중 {active.length}명</span>}
                     </div>
 
-                    {/* 현재 적용 중 */}
-                    <div className="space-y-3">
-                        <h3 className="text-sm font-heavy text-red-400 uppercase tracking-widest flex items-center gap-2"><Icon name="alert-circle" size={14}/> 현재 적용 중 ({active.length}명)</h3>
+                    {/* 현재 적용 중 — 흰 보드 */}
+                    <div className="card shadow-xl space-y-4">
+                        <h3 className="text-base font-heavy text-red-400 flex items-center gap-2"><Icon name="alert-circle" size={16}/> 현재 적용 중 ({active.length}명)</h3>
                         {active.length === 0 ? (
-                            <div className="card text-center py-10 text-slate-600 font-bold"><Icon name="check-circle" size={32} className="mx-auto mb-2 opacity-30"/>현재 블랙리스트 등재 고객이 없습니다.</div>
-                        ) : active.map(b => {
+                            <div className="text-center py-8 text-slate-600 font-bold"><Icon name="check-circle" size={32} className="mx-auto mb-2 opacity-30"/>현재 블랙리스트 등재 고객이 없습니다.</div>
+                        ) : <div className="space-y-3">{active.map(b => {
                             const days = calcDays(b.startDate, b.endDate);
                             return (
-                            <div key={b.id} className="card border border-red-800/40 bg-red-950/15 space-y-2.5">
+                            <div key={b.id} className="rounded-2xl border border-red-800/40 bg-red-950/15 p-4 space-y-2.5">
                                 <div className="flex flex-wrap justify-between items-start gap-2">
                                     <div className="flex items-center gap-2">
                                         <Icon name="shield-off" size={16} className="text-red-500 flex-shrink-0"/>
@@ -2875,11 +2875,11 @@
                                 <p className="text-[10px] text-slate-600 font-bold pl-6">등록: {b.registeredBy} · {formatDate(b.createdAt)}</p>
                             </div>
                             );
-                        })}
+                        })}</div>}
                     </div>
 
-                    {/* 등재 사유 규정 — 카드 UI */}
-                    <div className="space-y-4">
+                    {/* 등재 사유 규정 — 흰 보드로 전체 감싸기 */}
+                    <div className="card shadow-xl space-y-6">
                         <h3 className="text-lg font-heavy text-white flex items-center gap-2">❄️ 설국 블랙리스트 등재 사유 안내</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {RULES.map((r, i) => (
