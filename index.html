@@ -79,7 +79,7 @@
 
         /* ══ Layout ══ */
         .app-shell { display: flex; min-height: 100vh; width: 100%; overflow-x: hidden; }
-        .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: fixed; top: 0; left: 0; height: 100vh; flex-shrink: 0; z-index: 40; overflow: hidden; }
+        .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: fixed; top: 0; left: 0; height: 100vh; height: 100dvh; flex-shrink: 0; z-index: 40; overflow: hidden; }
         .main-area { flex: 1; min-width: 0; max-width: 100%; padding: 1.5rem; overflow-x: hidden; margin-left: 240px; }
         .mobile-topbar { display: none; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0.75rem 1rem; position: sticky; top: 0; z-index: 60; align-items: center; justify-content: space-between; }
         .mobile-bottomnav { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #0f172a; border-top: 1px solid #1e293b; padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom)); }
@@ -723,14 +723,14 @@
 
                     {/* ── 사이드바 (PC/태블릿) ── */}
                     <nav className="sidebar lm-nav">
-                        <div className="flex items-center gap-3 py-4 px-1 mb-2">
+                        <div className="flex items-center gap-3 py-4 px-1 mb-2 flex-shrink-0">
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
                                 <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.3.9</div>
                             </div>
                         </div>
-                        <div className="flex-1 space-y-1 min-h-0">
+                        <div className="flex-1 space-y-1 min-h-0 overflow-y-auto overflow-x-hidden">
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
                             <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
@@ -742,17 +742,21 @@
                                     <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>
                                     <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo"
                                         badge={records.filter(r => r.status === 'pending' && !r.auditReason).length || 0} />
-                                    <NavItem active={activeTab==='payroll'} onClick={()=>setActiveTab('payroll')} icon="banknote" label="주급 정산" color="indigo" />
                                 </div>
                             )}
                             {(user.role === ROLES.HR || user.role === ROLES.ADMIN) && (
-                                <div className={`pt-4 border-t border-slate-800 ${user.role === ROLES.HR ? 'mt-6' : 'mt-1'}`}>
+                                <div className={user.role === ROLES.HR ? 'mt-6 pt-4 border-t border-slate-800' : 'mt-1'}>
                                     {user.role === ROLES.HR && <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>}
                                     <NavItem active={activeTab==='hr'} onClick={()=>setActiveTab('hr')} icon="user-check" label="인사 데스크" color="indigo" />
                                 </div>
                             )}
+                            {(user.role === ROLES.AUDIT || user.role === ROLES.HR || user.role === ROLES.ADMIN) && (
+                                <div className="mt-1 pt-1">
+                                    <NavItem active={activeTab==='payroll'} onClick={()=>setActiveTab('payroll')} icon="banknote" label="주급 정산" color="indigo" />
+                                </div>
+                            )}
                         </div>
-                        <div className="pt-4 border-t border-slate-800 space-y-1">
+                        <div className="pt-4 border-t border-slate-800 space-y-1 flex-shrink-0">
                             <button onClick={()=>setShowNotifModal(true)} className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-800 hover:text-white relative">
                                 <Icon name="bell" size={18}/>
                                 <span className="font-bold text-sm">알림</span>
@@ -795,11 +799,13 @@
                                 { tab:'ranking',   icon:'trophy',           label:'랭킹'     },
                                 { tab:'blacklist', icon:'shield-off',       label:'블랙'     },
                                 ...(( user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) ? [
-                                    { tab:'audit',    icon:'shield-check', label:'감사'  },
-                                    { tab:'payroll',  icon:'banknote',     label:'주급'  },
+                                    { tab:'audit', icon:'shield-check', label:'감사' },
                                 ] : []),
                                 ...((user.role === ROLES.HR || user.role === ROLES.ADMIN) ? [
                                     { tab:'hr', icon:'user-check', label:'인사' },
+                                ] : []),
+                                ...((user.role === ROLES.AUDIT || user.role === ROLES.HR || user.role === ROLES.ADMIN) ? [
+                                    { tab:'payroll', icon:'banknote', label:'주급' },
                                 ] : []),
                                 ...(user.role === ROLES.ADMIN    ? [{ tab:'admin', icon:'settings',     label:'설정'  }] : []),
                                 { tab:'mypage', icon:'user-cog', label:'내 설정' },
