@@ -2972,6 +2972,8 @@
         // --- Payroll View ---
         function PayrollView({ records, allUsers, config, weekRange, weekOffset, setWeekOffset, showToast }) {
             const BONUS = { 0: 10000000000, 1: 5000000000, 2: 3000000000 }; // 1등 100억, 2등 50억, 3등 30억
+            const AUDIT_BONUS = 20000000000; // 감사팀 50건 이상 200억
+            const AUDIT_BONUS_THRESHOLD = 50;
             const PAYRATE = 0.1;
 
             const isCurrentWeek = weekOffset === 0;
@@ -2992,9 +2994,19 @@
                     return d >= weekRange.start && d <= weekRange.end;
                 });
 
+                // 주간 감사 처리 건수 (auditorName 기준)
+                const auditCounts = {};
+                records.filter(r => {
+                    if (!r.auditorName || !r.auditedAt) return false;
+                    const d = new Date(r.auditedAt);
+                    return d >= weekRange.start && d <= weekRange.end;
+                }).forEach(r => {
+                    auditCounts[r.auditorName] = (auditCounts[r.auditorName] || 0) + 1;
+                });
+
                 const map = {};
                 employees.forEach(u => {
-                    map[u.uid] = { uid: u.uid, name: u.nickname, sn: u.sn, role: u.role, count: 0, total: 0 };
+                    map[u.uid] = { uid: u.uid, name: u.nickname, sn: u.sn, role: u.role, count: 0, total: 0, auditCount: auditCounts[u.nickname] || 0 };
                 });
                 weekRecs.forEach(r => {
                     if (map[r.sellerUid]) {
@@ -3010,16 +3022,18 @@
             // 실제 판매 있는 사람만 순위 부여 (0건은 순위 없음)
             const rankedData = useMemo(() => {
                 return payrollData.map((d, idx) => {
-                    const rankIdx = d.count > 0 ? idx : null; // 0건이면 순위 없음
-                    // 동점 처리: 앞 사람과 count 같으면 같은 순위
                     let rank = null;
                     if (d.count > 0) {
                         rank = payrollData.filter((x, i) => i < payrollData.indexOf(d) && x.count > d.count || (x.count === d.count && x.total > d.total)).length;
                     }
                     const base = Math.round(d.total * PAYRATE);
-                    const bonus = (rank !== null && BONUS[rank]) ? BONUS[rank] : 0;
+                    const rankBonus = (rank !== null && BONUS[rank]) ? BONUS[rank] : 0;
+                    // 감사팀/관리자 50건 이상 감사 처리 시 200억 보너스
+                    const isAuditor = d.role === ROLES.AUDIT || d.role === ROLES.ADMIN;
+                    const auditBonus = (isAuditor && d.auditCount >= AUDIT_BONUS_THRESHOLD) ? AUDIT_BONUS : 0;
+                    const bonus = rankBonus + auditBonus;
                     const weekly = base + bonus;
-                    return { ...d, rank, base, bonus, weekly };
+                    return { ...d, rank, base, rankBonus, auditBonus, bonus, weekly };
                 });
             }, [payrollData]);
 
@@ -3051,6 +3065,29 @@
                         </div>
                     </div>
 
+                    {/* 주급 산정 기준 — 상단 */}
+                    <div className="card border border-slate-700/50">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-xs text-slate-500 font-heavy uppercase flex items-center gap-1"><Icon name="info" size={12}/> 산정 기준</span>
+                            <div className="bg-slate-900 rounded-xl px-3 py-2 border border-slate-800 text-sm font-bold">
+                                <span className="text-slate-500">기본 주급</span> <span className="text-green-400 ml-1.5">총매출 × 10%</span>
+                            </div>
+                            <div className="bg-yellow-900/20 rounded-xl px-3 py-2 border border-yellow-700/30 text-sm font-bold flex items-center gap-1.5">
+                                <span>👑</span><span className="text-slate-400">1위</span><span className="text-yellow-400">+{formatKRW(BONUS[0])}</span>
+                            </div>
+                            <div className="bg-slate-700/20 rounded-xl px-3 py-2 border border-slate-500/30 text-sm font-bold flex items-center gap-1.5">
+                                <span>🥈</span><span className="text-slate-400">2위</span><span className="text-slate-300">+{formatKRW(BONUS[1])}</span>
+                            </div>
+                            <div className="bg-amber-900/15 rounded-xl px-3 py-2 border border-amber-700/30 text-sm font-bold flex items-center gap-1.5">
+                                <span>🥉</span><span className="text-slate-400">3위</span><span className="text-amber-400">+{formatKRW(BONUS[2])}</span>
+                            </div>
+                            <div className="bg-indigo-900/20 rounded-xl px-3 py-2 border border-indigo-700/30 text-sm font-bold flex items-center gap-1.5">
+                                <span>🛡️</span><span className="text-slate-400">감사 {AUDIT_BONUS_THRESHOLD}건+</span><span className="text-indigo-400">+{formatKRW(AUDIT_BONUS)}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-600 font-bold ml-auto">* 0건 사원 미지급 · 이벤트 계정 제외</p>
+                        </div>
+                    </div>
+
                     {/* 요약 카드 */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="card space-y-1">
@@ -3062,7 +3099,7 @@
                             <p className="text-2xl font-heavy text-white">{formatKRW(rankedData.reduce((s,d)=>s+d.total,0))}</p>
                         </div>
                         <div className="card space-y-1">
-                            <p className="text-xs text-slate-500 font-heavy uppercase">총 지급액 (주급+보너스)</p>
+                            <p className="text-xs text-slate-500 font-heavy uppercase">총 지급액</p>
                             <p className="text-2xl font-heavy text-green-400">{formatKRW(totalPayout)}</p>
                         </div>
                     </div>
@@ -3075,12 +3112,10 @@
                                     <tr className="border-b border-slate-800">
                                         <th className="px-5 py-4 whitespace-nowrap">순위</th>
                                         <th className="px-5 py-4 whitespace-nowrap">사원명</th>
-                                        <th className="px-5 py-4 text-center whitespace-nowrap">판매건수</th>
-                                        <th className="px-5 py-4 text-right whitespace-nowrap">주간 총매출</th>
-                                        <th className="px-5 py-4 text-right whitespace-nowrap">공계 입금액</th>
-                                        <th className="px-5 py-4 text-right whitespace-nowrap">기본 주급 (10%)</th>
-                                        <th className="px-5 py-4 text-right whitespace-nowrap">보너스</th>
-                                        <th className="px-5 py-4 text-right whitespace-nowrap">최종 주급</th>
+                                        <th className="px-5 py-4 text-center whitespace-nowrap">판매</th>
+                                        <th className="px-5 py-4 text-right whitespace-nowrap">총매출</th>
+                                        <th className="px-5 py-4 text-right whitespace-nowrap">기본주급 · 보너스</th>
+                                        <th className="px-5 py-4 text-right whitespace-nowrap text-green-400">최종 주급</th>
                                         <th className="px-5 py-4 text-center whitespace-nowrap">복사</th>
                                     </tr>
                                 </thead>
@@ -3108,18 +3143,19 @@
                                                 <span className={d.total > 0 ? 'text-white' : 'text-slate-700'}>{d.total > 0 ? formatKRW(d.total) : '-'}</span>
                                             </td>
                                             <td className="px-5 py-4 text-right whitespace-nowrap">
-                                                <span className={d.total > 0 ? 'text-blue-400' : 'text-slate-700'}>{d.total > 0 ? formatKRW(d.total * 0.5) : '-'}</span>
-                                            </td>
-                                            <td className="px-5 py-4 text-right whitespace-nowrap">
-                                                <span className={d.base > 0 ? 'text-green-400 font-heavy' : 'text-slate-700'}>{d.base > 0 ? formatKRW(d.base) : '-'}</span>
-                                            </td>
-                                            <td className="px-5 py-4 text-right whitespace-nowrap">
-                                                {d.bonus > 0 ? (
-                                                    <span className={`font-heavy ${rs?.bonusColor || 'text-yellow-400'}`}>+{formatKRW(d.bonus)}</span>
+                                                {d.base > 0 || d.auditBonus > 0 ? (
+                                                    <div className="space-y-0.5">
+                                                        {d.base > 0 && <div><span className="text-slate-400 text-sm">{formatKRW(d.base)}</span>
+                                                            {d.rankBonus > 0 && <span className={`ml-2 text-sm font-heavy ${rs?.bonusColor||'text-yellow-400'}`}>+{formatKRW(d.rankBonus)}</span>}
+                                                        </div>}
+                                                        {d.auditBonus > 0 && <div><span className="text-indigo-400 text-xs font-heavy">🛡️ 감사 {d.auditCount}건 +{formatKRW(d.auditBonus)}</span></div>}
+                                                    </div>
                                                 ) : <span className="text-slate-700">-</span>}
                                             </td>
                                             <td className="px-5 py-4 text-right whitespace-nowrap">
-                                                <span className={`text-lg font-heavy ${d.weekly > 0 ? 'text-white' : 'text-slate-700'}`}>{d.weekly > 0 ? formatKRW(d.weekly) : '-'}</span>
+                                                <span className={`text-xl font-heavy ${d.weekly > 0 ? 'text-green-400' : 'text-slate-700'}`}>
+                                                    {d.weekly > 0 ? formatKRW(d.weekly) : '-'}
+                                                </span>
                                             </td>
                                             <td className="px-5 py-4 text-center whitespace-nowrap">
                                                 {d.weekly > 0 ? (
@@ -3136,26 +3172,6 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
-                    {/* 보너스 안내 */}
-                    <div className="card border border-slate-700/50 space-y-3">
-                        <h3 className="text-sm font-heavy text-slate-300 flex items-center gap-2"><Icon name="info" size={14}/> 주급 산정 기준</h3>
-                        <div className="flex flex-wrap gap-3">
-                            <div className="bg-slate-900 rounded-xl px-4 py-2.5 border border-slate-800 text-sm font-bold">
-                                <span className="text-slate-500">기본 주급</span> <span className="text-green-400 ml-2">주간 총매출 × 10%</span>
-                            </div>
-                            <div className="bg-yellow-900/20 rounded-xl px-4 py-2.5 border border-yellow-700/30 text-sm font-bold flex items-center gap-2">
-                                <span>👑</span> <span className="text-slate-400">1위 보너스</span> <span className="text-yellow-400 ml-1">+{formatKRW(BONUS[0])}</span>
-                            </div>
-                            <div className="bg-slate-700/20 rounded-xl px-4 py-2.5 border border-slate-500/30 text-sm font-bold flex items-center gap-2">
-                                <span>🥈</span> <span className="text-slate-400">2위 보너스</span> <span className="text-slate-300 ml-1">+{formatKRW(BONUS[1])}</span>
-                            </div>
-                            <div className="bg-amber-900/15 rounded-xl px-4 py-2.5 border border-amber-700/30 text-sm font-bold flex items-center gap-2">
-                                <span>🥉</span> <span className="text-slate-400">3위 보너스</span> <span className="text-amber-400 ml-1">+{formatKRW(BONUS[2])}</span>
-                            </div>
-                        </div>
-                        <p className="text-[10px] text-slate-600 font-bold">* 판매건수 기준 정렬 · 0건 사원은 순위 및 주급 미지급 · 이벤트 계정 제외</p>
                     </div>
                 </div>
             );
