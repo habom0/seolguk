@@ -305,8 +305,8 @@
             allKeys.forEach(k => { if (items[k]) sorted[k] = items[k]; });
             return sorted;
         };
-        const ROLES = { PENDING: '가입신청', EMPLOYEE: '사원', AUDIT: '감사팀', ADMIN: '관리자', EVENT: '이벤트용' };
-        const ACTIVE_ROLES = ['사원', '감사팀', '관리자'];
+        const ROLES = { PENDING: '가입신청', EMPLOYEE: '사원', AUDIT: '감사팀', HR: '인사팀', ADMIN: '관리자', EVENT: '이벤트용', RESIGNED: '퇴사' };
+        const ACTIVE_ROLES = ['사원', '감사팀', '인사팀', '관리자'];
         const WEEK_DAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
         // ── 공통 className 상수 ──
@@ -457,6 +457,10 @@
             const [records, setRecords] = useState([]);
             const [allUsers, setAllUsers] = useState([]);
             const [blacklist, setBlacklist] = useState([]);
+            const [hrRecords, setHrRecords] = useState([]);
+            const [hrNotes, setHrNotes] = useState([]);
+            const [hrRanks, setHrRanks] = useState([]);
+            const [hrRankHistory, setHrRankHistory] = useState([]);
             const [config, setConfig] = useState({ weekStartDay: 1, eventNotice: "" }); 
             const [weekOffset, setWeekOffset] = useState(0);
             const [authMode, setAuthMode] = useState('login');
@@ -492,8 +496,13 @@
                     if (user) {
                         const updated = list.find(u => u.uid === user.uid);
                         if (updated) {
-                            setUser(updated);
-                            localStorage.setItem('seolguk_user_session', JSON.stringify(updated));
+                            if (updated.role === ROLES.RESIGNED) {
+                                setUser(null);
+                                localStorage.removeItem('seolguk_user_session');
+                            } else {
+                                setUser(updated);
+                                localStorage.setItem('seolguk_user_session', JSON.stringify(updated));
+                            }
                         }
                     }
                 });
@@ -506,6 +515,22 @@
                 const blacklistCol = collection(db, 'artifacts', appId, 'public', 'data', 'blacklist');
                 const unsubBlacklist = onSnapshot(blacklistCol, (snap) => {
                     setBlacklist(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                });
+                const hrCol = collection(db, 'artifacts', appId, 'public', 'data', 'hr_records');
+                const unsubHr = onSnapshot(hrCol, (snap) => {
+                    setHrRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+                const hrNotesCol = collection(db, 'artifacts', appId, 'public', 'data', 'hr_notes');
+                const unsubHrNotes = onSnapshot(hrNotesCol, (snap) => {
+                    setHrNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+                const hrRanksCol = collection(db, 'artifacts', appId, 'public', 'data', 'hr_ranks');
+                const unsubHrRanks = onSnapshot(hrRanksCol, (snap) => {
+                    setHrRanks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+                const hrRankHistCol = collection(db, 'artifacts', appId, 'public', 'data', 'hr_rank_history');
+                const unsubHrRankHist = onSnapshot(hrRankHistCol, (snap) => {
+                    setHrRankHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
                 });
                 const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
                 const unsubConfig = onSnapshot(configDoc, (snap) => {
@@ -526,7 +551,7 @@
                         setNotifications(list);
                     });
                 }
-                return () => { unsubUsers(); unsubRecords(); unsubConfig(); unsubNotif(); unsubBlacklist(); };
+                return () => { unsubUsers(); unsubRecords(); unsubConfig(); unsubNotif(); unsubBlacklist(); unsubHr(); unsubHrNotes(); unsubHrRanks(); unsubHrRankHist(); };
             }, [fbUser]);
 
             const weekRange = useMemo(() => {
@@ -580,7 +605,7 @@
                         <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
-                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.3.2</p>
+                            <p className="text-blue-400 text-xs font-heavy mb-8">ver.3.8</p>
                             <div className="flex justify-center gap-6 mb-8 text-lg border-b border-slate-800">
                                 {['login', 'signup', 'changepw'].map(m => (
                                     <button key={m} onClick={()=>setAuthMode(m)} className={`pb-2 px-1 transition-all ${authMode === m ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -596,8 +621,12 @@
                                 if (authMode === 'login') {
                                     const found = allUsers.find(u => u.sn === sn && u.password === pw);
                                     if (found) {
-                                        setUser(found);
-                                        localStorage.setItem('seolguk_user_session', JSON.stringify(found));
+                                        if (found.role === ROLES.RESIGNED) {
+                                            alert('퇴사 처리된 계정입니다. 접근이 불가합니다.');
+                                        } else {
+                                            setUser(found);
+                                            localStorage.setItem('seolguk_user_session', JSON.stringify(found));
+                                        }
                                     } else {
                                         alert('정보가 올바르지 않습니다.');
                                     }
@@ -658,7 +687,7 @@
                             <div className="bg-blue-600 p-1.5 rounded-lg text-sm">❄️</div>
                             <div>
                                 <span className="font-heavy text-white text-sm uppercase tracking-tight">설국 인트라넷</span>
-                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.3.2</span>
+                                <span className="ml-1.5 text-[9px] text-blue-400 font-heavy bg-blue-500/15 px-1.5 py-0.5 rounded-md border border-blue-500/30">ver.3.8</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -678,7 +707,7 @@
                             <div className="bg-blue-600 p-2 rounded-xl text-base">❄️</div>
                             <div>
                                 <div className="font-heavy text-white text-base uppercase tracking-tight">설국 인트라넷</div>
-                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.3.2</div>
+                                <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.3.8</div>
                             </div>
                         </div>
                         <div className="flex-1 space-y-1">
@@ -694,6 +723,12 @@
                                     <NavItem active={activeTab==='audit'} onClick={()=>setActiveTab('audit')} icon="shield-check" label="감사 데스크" color="indigo"
                                         badge={records.filter(r => r.status === 'pending' && !r.auditReason).length || 0} />
                                     <NavItem active={activeTab==='payroll'} onClick={()=>setActiveTab('payroll')} icon="banknote" label="주급 정산" color="indigo" />
+                                </div>
+                            )}
+                            {(user.role === ROLES.HR || user.role === ROLES.ADMIN) && (
+                                <div className={`pt-4 border-t border-slate-800 ${user.role === ROLES.HR ? 'mt-6' : 'mt-1'}`}>
+                                    {user.role === ROLES.HR && <p className="text-[10px] text-slate-600 uppercase font-heavy px-2 mb-2 tracking-widest">관리 시스템</p>}
+                                    <NavItem active={activeTab==='hr'} onClick={()=>setActiveTab('hr')} icon="user-check" label="인사 데스크" color="indigo" />
                                 </div>
                             )}
                         </div>
@@ -725,7 +760,8 @@
                         {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} config={config} />}
                         {activeTab === 'blacklist' && <BlacklistView blacklist={blacklist} user={user} showToast={showToast} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} blacklist={blacklist} />}
-                        {activeTab === 'payroll' && <PayrollView records={records} allUsers={allUsers} config={config} weekRange={weekRange} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showToast={showToast} />}
+                        {activeTab === 'payroll' && <PayrollView records={records} allUsers={allUsers} config={config} weekRange={weekRange} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showToast={showToast} hrRecords={hrRecords} />}
+                        {activeTab === 'hr' && <HRView allUsers={allUsers} hrRecords={hrRecords} hrNotes={hrNotes} hrRanks={hrRanks} hrRankHistory={hrRankHistory} user={user} showToast={showToast} weekRange={weekRange} weekOffset={weekOffset} setWeekOffset={setWeekOffset} config={config} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
                         {activeTab === 'mypage' && <MyPageView user={user} setUser={setUser} showToast={showToast} />}
                     </main>
@@ -741,6 +777,9 @@
                                 ...(( user.role === ROLES.AUDIT || user.role === ROLES.ADMIN) ? [
                                     { tab:'audit',    icon:'shield-check', label:'감사'  },
                                     { tab:'payroll',  icon:'banknote',     label:'주급'  },
+                                ] : []),
+                                ...((user.role === ROLES.HR || user.role === ROLES.ADMIN) ? [
+                                    { tab:'hr', icon:'user-check', label:'인사' },
                                 ] : []),
                                 ...(user.role === ROLES.ADMIN    ? [{ tab:'admin', icon:'settings',     label:'설정'  }] : []),
                                 { tab:'mypage', icon:'user-cog', label:'내 설정' },
@@ -1463,7 +1502,7 @@
             const todayEnd   = useMemo(() => { const d = new Date(todayStart); d.setDate(d.getDate()+1); return d; }, [todayStart]);
 
             // 이벤트용 uid 목록
-            const eventUids = useMemo(() => new Set(allUsers.filter(u => u.role === ROLES.EVENT).map(u => u.uid)), [allUsers]);
+            const eventUids = useMemo(() => new Set(allUsers.filter(u => u.role === ROLES.EVENT || u.role === ROLES.RESIGNED).map(u => u.uid)), [allUsers]);
 
             // 오늘 전체 판매건
             const todayAll = useMemo(() => allRecords.filter(r => { const d = new Date(r.timestamp); return d >= todayStart && d < todayEnd; }), [allRecords, todayStart, todayEnd]);
@@ -1805,7 +1844,7 @@
 
             const warningSortedUsers = useMemo(() => {
                 const result = allUsers
-                    .filter(u => u.uid && u.nickname && u.role !== ROLES.EVENT && u.role !== ROLES.PENDING && u.sn !== '0000')
+                    .filter(u => u.uid && u.nickname && u.role !== ROLES.EVENT && u.role !== ROLES.PENDING && u.role !== ROLES.RESIGNED && u.sn !== '0000')
                     .map(u => {
                         const score = records.filter(r => r.sellerUid === u.uid).reduce((s, r) => s + (parseInt(r.penaltyPoints) || 0), 0);
                         return { ...u, warningSum: score };
@@ -2586,7 +2625,7 @@
 
             const data = useMemo(() => {
                 const excludeUids = new Set(
-                    allUsers.filter(u => u.role === ROLES.EVENT || u.role === ROLES.PENDING).map(u => u.uid)
+                    allUsers.filter(u => u.role === ROLES.EVENT || u.role === ROLES.PENDING || u.role === ROLES.RESIGNED).map(u => u.uid)
                 );
                 const s = {};
                 records
@@ -2969,11 +3008,656 @@
             );
         }
 
+        // --- HR View ---
+        const HR_RANK_GROUPS = [
+            { group:'간부직', emoji:'👑', color:'text-amber-300',   bg:'bg-amber-500/20',   border:'border-amber-500/40',   dot:'bg-amber-400',   ranks:['부장','이사','전무','비서'] },
+            { group:'일반직', emoji:'💼', color:'text-blue-300',    bg:'bg-blue-500/20',    border:'border-blue-500/40',    dot:'bg-blue-400',    ranks:['차장','과장','대리','주임','사원'] },
+            { group:'계약직', emoji:'📋', color:'text-slate-300',   bg:'bg-slate-500/20',   border:'border-slate-500/40',   dot:'bg-slate-400',   ranks:['인턴'] },
+            { group:'특수직', emoji:'⭐', color:'text-purple-300',  bg:'bg-purple-500/20',  border:'border-purple-500/40',  dot:'bg-purple-400',  ranks:['금쪽이'] },
+        ];
+        const ALL_HR_RANKS = HR_RANK_GROUPS.flatMap(g => g.ranks);
+        const getRankStyle = (rank) => {
+            if (!rank) return null;
+            return HR_RANK_GROUPS.find(g => g.ranks.includes(rank)) || null;
+        };
+        const HRRankBadge = ({ rank }) => {
+            const s = getRankStyle(rank);
+            if (!s) return null;
+            return <span className={`inline-flex items-center gap-1 text-[10px] font-heavy px-2 py-0.5 rounded-md border ${s.bg} ${s.border} ${s.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`}/>
+                {rank}
+            </span>;
+        };
+        const DEFAULT_HR_CHECKLIST = [
+            { id:'c1',  label:'디스코드 서버검사 진행 (타서버·불법서버 가입 여부 확인)' },
+            { id:'c2',  label:'설국 사설 디스코드 서버 초대 완료' },
+            { id:'c3',  label:'꿀벌서버 닉네임 변경 (고유번호 | ❄️닉네임 | 설국 인턴) 및 역할 신청 완료' },
+            { id:'c4',  label:'인게임 직급 신청 완료 (팩션장/부팩션장/고위직)' },
+            { id:'c5',  label:'하루 최대 판매 수량 숙지 (진통제 200 / 엘릭서 200 / 꿀스틱 30 / 꿀젤리 30)' },
+            { id:'c6',  label:'장부 작성 방법 안내 완료' },
+            { id:'c7',  label:'판매 후 공계 50% 입금 방법 안내 완료' },
+            { id:'c8',  label:'내/외부 공지 및 메뉴얼 필수 숙지 안내 (미숙지 시 본인 책임)' },
+            { id:'c9',  label:'피크타임 무전방 참여 필수 안내' },
+            { id:'c10', label:'개인 사정 시 사설 디스코드 휴가신청란 작성 안내' },
+            { id:'c11', label:'타게임·RP 등 판매 불가 상황 시 퇴근 처리 안내 (출근인원 0명 시 예외)' },
+        ];
+
+        function RankRow({ u, isChecked, effectiveRank, rankRecord, onToggle, onDetail }) {
+            const rs = getRankStyle(effectiveRank);
+            return (
+                <div className={`flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-800/30 ${isChecked ? 'bg-blue-900/15' : ''}`}>
+                    <div onClick={()=>onToggle(u.uid)}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${isChecked ? 'bg-blue-500 border-blue-500' : 'border-slate-600 hover:border-slate-400'}`}>
+                        <Icon name="check" size={12} className={isChecked ? 'text-white' : 'text-transparent'}/>
+                    </div>
+                    <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="text-white font-heavy">{u.nickname}</span>
+                        <span className="text-slate-600 text-xs">#{u.sn}</span>
+                        <HRRankBadge rank={effectiveRank}/>
+                        <span className="text-[10px] text-slate-600">
+                            {rankRecord?.promotedAt ? `${formatDate(rankRecord.promotedAt)} · ${rankRecord.promotedBy}` : ''}
+                        </span>
+                    </div>
+                    <button onClick={()=>onDetail(u)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 hover:text-white transition-all flex-shrink-0">
+                        <Icon name="zoom-in" size={15}/>
+                    </button>
+                </div>
+            );
+        }
+
+        function HREvalPanel({ target, notes, rank, user, onClose, showToast }) {
+            const [noteInput, setNoteInput] = useState('');
+            const [saving, setSaving] = useState(false);
+
+            const addNote = async () => {
+                if (!noteInput.trim()) return;
+                setSaving(true);
+                const id = 'hn_' + Date.now();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hr_notes', id), {
+                    targetUid: target.uid, targetName: target.nickname, targetSn: target.sn,
+                    authorUid: user.uid, authorName: user.nickname,
+                    content: noteInput.trim(),
+                    createdAt: new Date().toISOString(),
+                });
+                setNoteInput('');
+                setSaving(false);
+                showToast('평가 메모가 저장됐습니다.');
+            };
+
+            const deleteNote = async (noteId) => {
+                if (!window.confirm('이 메모를 삭제하시겠습니까?')) return;
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hr_notes', noteId));
+                showToast('메모가 삭제됐습니다.');
+            };
+
+            return (
+                <div className="card shadow-xl space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-lg font-heavy text-white">{target.nickname}</h3>
+                                {rank?.rank && <HRRankBadge rank={rank.rank}/>}
+                            </div>
+                            <p className="text-xs text-slate-500">#{target.sn}{rank?.promotedAt ? ` · 진급: ${formatDate(rank.promotedAt)}` : ''}</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400"><Icon name="x" size={15}/></button>
+                    </div>
+                    <div className="space-y-2">
+                        <textarea className="input-base font-bold resize-none h-24 text-sm" value={noteInput}
+                            onChange={e=>setNoteInput(e.target.value)}
+                            placeholder="인사 평가 메모를 입력하세요..."/>
+                        <button onClick={addNote} disabled={saving || !noteInput.trim()}
+                            className="btn btn-blue w-full py-2.5 text-sm font-heavy flex items-center justify-center gap-2">
+                            <Icon name={saving?'loader':'plus'} size={14}/>
+                            {saving ? '저장 중...' : '메모 추가'}
+                        </button>
+                    </div>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {notes.length === 0 ? (
+                            <p className="text-center text-slate-600 text-sm py-6 font-bold">등록된 평가 메모가 없습니다.</p>
+                        ) : notes.map(n => (
+                            <div key={n.id} className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-blue-400 font-heavy">{n.authorName}</span>
+                                        <span className="text-[10px] text-slate-600 font-mono">{formatDate(n.createdAt)}</span>
+                                    </div>
+                                    <button onClick={()=>deleteNote(n.id)} className="p-1 text-slate-700 hover:text-red-400 transition-all"><Icon name="trash-2" size={13}/></button>
+                                </div>
+                                <p className="text-sm text-slate-300 font-bold leading-relaxed">{n.content}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function HRCheckPanel({ trainee, hrRecord, checklist, onSave, onClose, user }) {
+            const [checks, setChecks] = useState(hrRecord?.checks || {});
+            const [saving, setSaving] = useState(false);
+            const allChecked = checklist.every(c => checks[c.id]);
+            const toggle = (id) => setChecks(prev => ({ ...prev, [id]: !prev[id] }));
+            const selectAll = () => {
+                const all = {};
+                checklist.forEach(c => { all[c.id] = true; });
+                setChecks(all);
+            };
+            const handleSave = async () => {
+                setSaving(true);
+                await onSave(trainee, checks, checklist.every(c => checks[c.id]));
+                setSaving(false);
+            };
+            return (
+                <div className="card shadow-xl space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-heavy text-white">{trainee.nickname}</h3>
+                            <p className="text-xs text-slate-500">#{trainee.sn} · 가입 {formatDate(trainee.joinDate)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {hrRecord?.completed && <span className="text-sm bg-green-500/15 text-green-400 border border-green-600/30 px-3 py-1.5 rounded-xl font-heavy">✅ 교육완료</span>}
+                            <button onClick={onClose} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 transition-all"><Icon name="x" size={15}/></button>
+                        </div>
+                    </div>
+                    <button onClick={selectAll} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-heavy transition-all flex items-center justify-center gap-2">
+                        <Icon name="check-square" size={14}/> 전체 선택
+                    </button>
+                    <div className="space-y-2">
+                        {checklist.map((c, i) => {
+                            const done = !!checks[c.id];
+                            return (
+                                <div key={c.id} onClick={()=>toggle(c.id)}
+                                    className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors select-none ${done?'bg-green-900/15 border border-green-700/30':'bg-slate-900/50 border border-slate-800 hover:border-slate-700'}`}>
+                                    <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${done?'bg-green-500 border-green-500':'border-slate-600'}`}>
+                                        {done && <Icon name="check" size={10} className="text-white"/>}
+                                    </div>
+                                    <span className={`text-sm font-bold leading-relaxed ${done?'text-green-300':'text-slate-300'}`}>
+                                        <span className="text-slate-600 mr-1">{i+1}.</span>{c.label}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {allChecked && <div className="bg-green-900/20 border border-green-600/30 rounded-xl p-3 text-center"><p className="text-green-400 font-heavy text-sm">🎉 모든 항목 완료 — 저장 시 교육완료 처리됩니다</p></div>}
+                    <button onClick={handleSave} disabled={saving}
+                        className={`w-full py-3 rounded-xl font-heavy text-sm flex items-center justify-center gap-2 transition-all ${allChecked?'bg-green-600 hover:bg-green-500 text-white':'btn btn-blue'}`}>
+                        <Icon name={saving?'loader':'save'} size={15}/>{saving?'저장 중...':allChecked?'교육완료 처리':'진행상황 저장'}
+                    </button>
+                    {hrRecord && <p className="text-[10px] text-slate-700 text-center">담당: {hrRecord.trainerName} · {formatDate(hrRecord.updatedAt)}</p>}
+                </div>
+            );
+        }
+
+        function HRView({ allUsers, hrRecords, hrNotes, hrRanks, hrRankHistory, user, showToast, weekRange, weekOffset, setWeekOffset, config }) {
+            const [tab, setHrTab] = useState('trainees');
+            const [selectedTrainee, setSelectedTrainee] = useState(null);
+            const [evalTarget, setEvalTarget] = useState(null);
+            const [evalGroupFilter, setEvalGroupFilter] = useState('all');
+            const [rankGroupFilter, setRankGroupFilter] = useState('all');
+            const [selectedUids, setSelectedUids] = useState({});
+            const [bulkRank, setBulkRank] = useState('');
+            const [detailTarget, setDetailTarget] = useState(null);
+
+            const toggleSelect = (uid) => setSelectedUids(prev => ({ ...prev, [uid]: !prev[uid] }));
+            const selectAll = (list) => { const next = {}; list.forEach(u => { next[u.uid] = true; }); setSelectedUids(next); };
+            const clearSelect = () => setSelectedUids({});
+            const selectedCount = Object.values(selectedUids).filter(Boolean).length;
+            const isSelected = (uid) => !!selectedUids[uid];
+
+            const checklist = useMemo(() => config?.hrChecklist || DEFAULT_HR_CHECKLIST, [config?.hrChecklist]);
+            const isCurrentWeek = weekOffset === 0;
+            const weekLabel = isCurrentWeek ? '이번 주' : weekOffset === -1 ? '지난 주' : `${Math.abs(weekOffset)}주 전`;
+
+            const rankMap = useMemo(() => {
+                const map = {};
+                hrRanks.forEach(r => { map[r.uid] = r; });
+                return map;
+            }, [hrRanks]);
+
+            // uid → 진급이력 배열 (최신순)
+            const rankHistMap = useMemo(() => {
+                const map = {};
+                hrRankHistory.forEach(h => {
+                    if (!map[h.uid]) map[h.uid] = [];
+                    map[h.uid].push(h);
+                });
+                Object.values(map).forEach(arr => arr.sort((a,b) => new Date(b.promotedAt) - new Date(a.promotedAt)));
+                return map;
+            }, [hrRankHistory]);
+
+            // 직급 변경 — 현재 직급 doc 업데이트 + 이력 추가
+            const setRank = async (uid, nickname, rank) => {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hr_ranks', 'rank_' + uid), {
+                    uid, nickname, rank,
+                    promotedAt: new Date().toISOString(),
+                    promotedBy: user.nickname,
+                });
+                const histId = 'rh_' + uid + '_' + Date.now();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hr_rank_history', histId), {
+                    uid, nickname, rank,
+                    promotedAt: new Date().toISOString(),
+                    promotedBy: user.nickname,
+                });
+            };
+
+            // 현재 직급 (없으면 인턴)
+            const getEffectiveRank = (uid) => rankMap[uid]?.rank || '인턴';
+
+            const trainees = useMemo(() =>
+                allUsers
+                    .filter(u => u.role !== ROLES.PENDING && u.role !== ROLES.ADMIN && u.role !== ROLES.EVENT && u.role !== ROLES.RESIGNED && u.sn !== '0000')
+                    .sort((a,b) => new Date(b.joinDate||0) - new Date(a.joinDate||0)),
+                [allUsers]
+            );
+
+            const hrMap = useMemo(() => {
+                const map = {};
+                hrRecords.forEach(r => { map[r.traineeUid] = r; });
+                return map;
+            }, [hrRecords]);
+
+            const notesByUid = useMemo(() => {
+                const map = {};
+                hrNotes.forEach(n => {
+                    if (!map[n.targetUid]) map[n.targetUid] = [];
+                    map[n.targetUid].push(n);
+                });
+                Object.values(map).forEach(arr => arr.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                return map;
+            }, [hrNotes]);
+
+            const handleSave = async (trainee, checks, isComplete) => {
+                const existing = hrMap[trainee.uid];
+                const id = existing?.id || ('hr_' + trainee.uid);
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hr_records', id), {
+                    traineeUid: trainee.uid, traineeName: trainee.nickname, traineeSn: trainee.sn,
+                    trainerId: user.uid, trainerName: user.nickname, checks,
+                    completed: isComplete,
+                    completedAt: isComplete ? (existing?.completedAt || new Date().toISOString()) : null,
+                    updatedAt: new Date().toISOString(),
+                });
+                showToast(isComplete ? `${trainee.nickname} 교육 완료 처리됨` : '진행상황 저장됨');
+            };
+
+            // 직급 필터된 사원
+            const filteredByRankGroup = (list) => {
+                if (rankGroupFilter === 'all') return list;
+                if (rankGroupFilter === 'none') return list.filter(u => !rankMap[u.uid]);
+                const g = HR_RANK_GROUPS.find(g => g.group === rankGroupFilter);
+                return list.filter(u => g && g.ranks.includes(getEffectiveRank(u.uid)));
+            };
+
+            // 일괄 직급 부여
+            const applyBulkRank = async () => {
+                if (!bulkRank || selectedCount === 0) return;
+                const uids = Object.entries(selectedUids).filter(([,v])=>v).map(([k])=>k);
+                for (const uid of uids) {
+                    const u = trainees.find(u => u.uid === uid);
+                    if (u) await setRank(uid, u.nickname, bulkRank);
+                }
+                clearSelect();
+                setBulkRank('');
+                showToast(`${uids.length}명 직급 변경 완료`);
+            };
+
+            const hrRanking = useMemo(() => {
+                const excludeUids = new Set(allUsers.filter(u => u.sn === '0000' || u.role === ROLES.EVENT || u.role === ROLES.RESIGNED).map(u => u.uid));
+                const weekCompleted = hrRecords.filter(r => {
+                    if (!r.completedAt || excludeUids.has(r.trainerId)) return false;
+                    const d = new Date(r.completedAt);
+                    return d >= weekRange.start && d <= weekRange.end;
+                });
+                const counts = {};
+                weekCompleted.forEach(r => {
+                    if (!counts[r.trainerId]) counts[r.trainerId] = { name: r.trainerName, uid: r.trainerId, count: 0 };
+                    counts[r.trainerId].count++;
+                });
+                const totalAll = {};
+                hrRecords.filter(r=>r.completedAt && !excludeUids.has(r.trainerId)).forEach(r => { totalAll[r.trainerId] = (totalAll[r.trainerId]||0)+1; });
+                return Object.values(counts).map(c => ({...c, totalAll: totalAll[c.uid]||0})).sort((a,b)=>b.count-a.count);
+            }, [hrRecords, weekRange, allUsers]);
+
+            const completedRecords = useMemo(() =>
+                hrRecords.filter(r => r.completed).sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt)),
+                [hrRecords]
+            );
+
+            const evalTrainees = useMemo(() => {
+                if (evalGroupFilter === 'all') return trainees;
+                if (evalGroupFilter === 'none') return trainees.filter(u => !rankMap[u.uid]);
+                const g = HR_RANK_GROUPS.find(g => g.group === evalGroupFilter);
+                return trainees.filter(u => g && g.ranks.includes(getEffectiveRank(u.uid)));
+            }, [trainees, evalGroupFilter, rankMap]);
+
+            const TabBtn = ({k, label}) => (
+                <button onClick={()=>setHrTab(k)} className={`px-6 py-3 rounded-2xl transition-all font-bold ${tab===k?'bg-pink-600 text-white shadow-lg':'text-slate-500 hover:text-white'}`}>{label}</button>
+            );
+            const RankGroupFilter = ({value, onChange}) => (
+                <div className="flex flex-wrap gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800 w-fit">
+                    <button onClick={()=>onChange('all')} className={`px-3 py-1.5 rounded-lg text-xs font-heavy transition-all ${value==='all'?'bg-blue-600 text-white':'text-slate-500 hover:text-slate-300'}`}>전체</button>
+                    {HR_RANK_GROUPS.map(g => (
+                        <button key={g.group} onClick={()=>onChange(g.group)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-heavy transition-all ${value===g.group?`${g.bg} ${g.color} border ${g.border}`:'text-slate-500 hover:text-slate-300'}`}>
+                            {g.group}
+                        </button>
+                    ))}
+                </div>
+            );
+
+            return (
+                <div className="space-y-8 animate-fade-in font-bold">
+                    <div className="flex flex-wrap gap-4 border-b border-slate-800 pb-4">
+                        <TabBtn k="trainees" label="신입 교육"/>
+                        <TabBtn k="history" label="처리 기록"/>
+                        <TabBtn k="evaluation" label="인사 평가"/>
+                        <TabBtn k="ranks" label="직급 관리"/>
+                        <TabBtn k="ranking" label="인사팀 랭킹"/>
+                    </div>
+
+                    {tab === 'trainees' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div className="card p-0 overflow-hidden shadow-xl">
+                                <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+                                    <span className="font-heavy text-white text-sm flex items-center gap-2"><Icon name="users" size={15} className="text-pink-400"/> 사원 목록 <span className="text-slate-500 text-xs ml-1">최근 가입 순</span></span>
+                                    <span className="text-xs text-slate-500">{trainees.length}명</span>
+                                </div>
+                                <div className="divide-y divide-slate-800 max-h-[600px] overflow-y-auto">
+                                    {trainees.map(u => {
+                                        const hr = hrMap[u.uid];
+                                        const isSelected = selectedTrainee?.uid === u.uid;
+                                        const doneCount = hr ? checklist.filter(c=>hr.checks?.[c.id]).length : 0;
+                                        return (
+                                        <button key={u.uid} onClick={()=>setSelectedTrainee(u)}
+                                            className={`w-full px-5 py-3.5 flex items-center justify-between gap-3 text-left transition-all hover:bg-slate-800/50 ${isSelected?'bg-blue-900/20 border-l-2 border-l-blue-500':''}`}>
+                                            <div>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-white font-heavy text-sm">{u.nickname}</span>
+                                                    <span className="text-slate-600 text-xs">#{u.sn}</span>
+                                                    <HRRankBadge rank={getEffectiveRank(u.uid)}/>
+                                                </div>
+                                                <div className="text-[10px] text-slate-600 mt-0.5">가입: {formatDate(u.joinDate)}</div>
+                                            </div>
+                                            {hr?.completed
+                                                ? <span className="text-[10px] bg-green-500/15 text-green-400 border border-green-600/30 px-2 py-1 rounded-lg font-heavy flex-shrink-0 whitespace-nowrap">✅ 교육완료</span>
+                                                : hr ? <span className="text-[10px] bg-yellow-500/15 text-yellow-400 border border-yellow-600/30 px-2 py-1 rounded-lg font-heavy flex-shrink-0 whitespace-nowrap">{doneCount}/{checklist.length} 진행중</span>
+                                                : <span className="text-[10px] bg-slate-800 text-slate-600 px-2 py-1 rounded-lg font-heavy flex-shrink-0">미진행</span>}
+                                        </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            {selectedTrainee ? (
+                                <HRCheckPanel key={selectedTrainee.uid} trainee={selectedTrainee} hrRecord={hrMap[selectedTrainee.uid]}
+                                    checklist={checklist} onSave={handleSave} onClose={()=>setSelectedTrainee(null)} user={user}/>
+                            ) : (
+                                <div className="card shadow-xl flex items-center justify-center text-center py-16 text-slate-600">
+                                    <div><Icon name="user-check" size={40} className="mx-auto mb-3 opacity-30"/><p className="font-bold">좌측에서 사원을 선택하세요</p></div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {tab === 'ranks' && (
+                        <div className="space-y-5">
+                            {/* 직급 범례 */}
+                            <div className="card border border-slate-700/50 flex flex-wrap gap-4 items-center">
+                                {HR_RANK_GROUPS.map(g => (
+                                    <div key={g.group} className="flex items-center gap-1.5">
+                                        <span className={`w-2 h-2 rounded-full ${g.dot}`}/>
+                                        <span className={`text-xs font-heavy ${g.color}`}>{g.group}</span>
+                                        <span className="text-slate-700 text-[10px]">({g.ranks.join('·')})</span>
+                                    </div>
+                                ))}
+                                <span className="text-slate-700 text-[10px] ml-auto">* 미지정 사원은 인턴으로 표시</span>
+                            </div>
+
+                            {/* 직급별 필터 + 일괄 직급 부여 */}
+                            <div className="flex flex-wrap items-center gap-3 justify-between">
+                                <RankGroupFilter value={rankGroupFilter} onChange={v=>{setRankGroupFilter(v);clearSelect();}}/>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-600 font-heavy">{selectedCount > 0 ? `${selectedCount}명 선택됨` : '사원 선택 후'}</span>
+                                    <select value={bulkRank} onChange={e=>setBulkRank(e.target.value)}
+                                        className="input-base py-1.5 text-xs font-bold w-32">
+                                        <option value="">직급 선택</option>
+                                        {HR_RANK_GROUPS.map((g, gi) => (
+                                            <React.Fragment key={g.group}>
+                                                {gi > 0 && <option disabled>──────────</option>}
+                                                <optgroup label={g.emoji + ' ' + g.group}>
+                                                    {g.ranks.map(r => <option key={r} value={r}>{r}</option>)}
+                                                </optgroup>
+                                            </React.Fragment>
+                                        ))}
+                                    </select>
+                                    <button onClick={applyBulkRank} disabled={!bulkRank || selectedCount === 0}
+                                        className="px-4 py-2 bg-pink-600 hover:bg-pink-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl text-xs font-heavy transition-all">
+                                        직급 부여
+                                    </button>
+                                    <button onClick={clearSelect} disabled={selectedCount === 0} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-400 rounded-xl text-xs font-heavy transition-all">선택 해제</button>
+                                </div>
+                            </div>
+
+                            {/* 사원 목록 */}
+                            {(() => {
+                                const filtered = filteredByRankGroup(trainees);
+                                return (
+                                <div className="card p-0 overflow-hidden shadow-2xl">
+                                    <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={()=>selectAll(filtered)} className="text-xs text-slate-500 hover:text-white font-heavy transition-all">전체 선택</button>
+                                            {selectedCount > 0 && <button onClick={clearSelect} className="text-xs text-slate-600 hover:text-slate-400 font-heavy transition-all">선택 해제</button>}
+                                        </div>
+                                        <span className="text-sm font-heavy text-slate-400">총원 {filtered.length}명</span>
+                                    </div>
+                                    <div className="divide-y divide-slate-800">
+                                        {filtered.map(u => (
+                                            <RankRow
+                                                key={u.uid}
+                                                u={u}
+                                                isChecked={isSelected(u.uid)}
+                                                effectiveRank={getEffectiveRank(u.uid)}
+                                                rankRecord={rankMap[u.uid]}
+                                                onToggle={toggleSelect}
+                                                onDetail={setDetailTarget}
+                                            />
+                                        ))}
+                                        {filtered.length === 0 && <div className="py-10 text-center text-slate-600 font-bold">해당 직급의 사원이 없습니다.</div>}
+                                    </div>
+                                </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    {tab === 'history' && (
+                        <div className="card p-0 overflow-hidden shadow-2xl">
+                            <div className="px-5 py-3.5 border-b border-slate-800">
+                                <span className="font-heavy text-white text-sm">교육 완료 기록 ({completedRecords.length}건)</span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left font-heavy">
+                                    <thead className="bg-slate-800/50 text-slate-500 text-[10px] uppercase tracking-widest">
+                                        <tr className="border-b border-slate-800">
+                                            <th className="px-5 py-4">완료일</th>
+                                            <th className="px-5 py-4">사원명</th>
+                                            <th className="px-5 py-4 text-center">직급</th>
+                                            <th className="px-5 py-4 text-center">고유번호</th>
+                                            <th className="px-5 py-4">담당 인사팀</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800 text-white">
+                                        {completedRecords.length === 0 ? (
+                                            <tr><td colSpan="5" className="p-10 text-center text-slate-600 font-bold">교육 완료 기록이 없습니다.</td></tr>
+                                        ) : completedRecords.map(r => (
+                                            <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                                                <td className="px-5 py-4 text-xs text-slate-400 font-mono whitespace-nowrap">{formatDate(r.completedAt)}</td>
+                                                <td className="px-5 py-4 font-heavy">{r.traineeName}</td>
+                                                <td className="px-5 py-4 text-center"><HRRankBadge rank={getEffectiveRank(r.traineeUid)}/></td>
+                                                <td className="px-5 py-4 text-center text-slate-500 font-mono text-sm">#{r.traineeSn}</td>
+                                                <td className="px-5 py-4 text-slate-300">{r.trainerName}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {tab === 'evaluation' && (
+                        <div className="space-y-5">
+                            <RankGroupFilter value={evalGroupFilter} onChange={setEvalGroupFilter}/>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                                <div className="card p-0 overflow-hidden shadow-xl">
+                                    <div className="px-5 py-3.5 border-b border-slate-800">
+                                        <span className="font-heavy text-white text-sm flex items-center gap-2"><Icon name="clipboard-list" size={15} className="text-pink-400"/> 사원 선택 <span className="text-slate-500 text-xs ml-1">({evalTrainees.length}명)</span></span>
+                                    </div>
+                                    <div className="divide-y divide-slate-800 max-h-[600px] overflow-y-auto">
+                                        {evalTrainees.map(u => {
+                                            const noteCount = notesByUid[u.uid]?.length || 0;
+                                            const isSelected = evalTarget?.uid === u.uid;
+                                            return (
+                                            <button key={u.uid} onClick={()=>setEvalTarget(u)}
+                                                className={`w-full px-5 py-3.5 flex items-center justify-between gap-3 text-left transition-all hover:bg-slate-800/50 ${isSelected?'bg-blue-900/20 border-l-2 border-l-blue-500':''}`}>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-white font-heavy text-sm">{u.nickname}</span>
+                                                    <span className="text-slate-600 text-xs">#{u.sn}</span>
+                                                    <HRRankBadge rank={getEffectiveRank(u.uid)}/>
+                                                </div>
+                                                {noteCount > 0 && <span className="text-[10px] bg-blue-500/15 text-blue-400 border border-blue-600/30 px-2 py-1 rounded-lg font-heavy flex-shrink-0">{noteCount}건</span>}
+                                            </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                {!evalTarget ? (
+                                    <div className="card shadow-xl flex items-center justify-center text-center py-16 text-slate-600">
+                                        <div><Icon name="clipboard-list" size={40} className="mx-auto mb-3 opacity-30"/><p className="font-bold">좌측에서 사원을 선택하세요</p></div>
+                                    </div>
+                                ) : (
+                                    <HREvalPanel key={evalTarget.uid} target={evalTarget} notes={notesByUid[evalTarget.uid]||[]}
+                                        rank={rankMap[evalTarget.uid]} user={user} onClose={()=>setEvalTarget(null)} showToast={showToast}/>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {tab === 'ranking' && (
+                        <div className="space-y-5">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <h2 className="text-xl text-pink-400 font-heavy flex items-center gap-2"><Icon name="user-check" size={20}/> 인사팀 업무 실적 순위</h2>
+                                <div className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
+                                    <button onClick={()=>setWeekOffset(w=>w-1)} className="hover:text-blue-400 transition-all text-slate-400"><Icon name="chevron-left" size={18}/></button>
+                                    <span className="text-xs text-slate-400 font-heavy whitespace-nowrap px-1">
+                                        {weekRange.start.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} ~ {weekRange.end.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})}
+                                    </span>
+                                    <button onClick={()=>setWeekOffset(w=>Math.min(w+1,0))} disabled={isCurrentWeek}
+                                        className={`transition-all ${isCurrentWeek?'text-slate-700 cursor-not-allowed':'text-slate-400 hover:text-blue-400'}`}>
+                                        <Icon name="chevron-right" size={18}/>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {hrRanking.length === 0 ? (
+                                <div className="card text-center py-12 text-slate-600 font-bold"><Icon name="user-check" size={36} className="mx-auto mb-2 opacity-30"/>이번 주 교육 완료 기록이 없습니다.</div>
+                            ) : (<>
+                                <div className="space-y-3">
+                                    {hrRanking.filter(r=>r.count>0).map((r, idx) => {
+                                        const rs = idx===0
+                                            ? { border:'border-yellow-500/50', bg:'bg-yellow-900/10', numBg:'bg-yellow-500 text-black shadow-yellow-500/30', icon:'👑' }
+                                            : idx===1
+                                            ? { border:'border-slate-400/40', bg:'bg-slate-800/30', numBg:'bg-slate-400 text-black', icon:'🥈' }
+                                            : idx===2
+                                            ? { border:'border-amber-700/40', bg:'bg-amber-900/10', numBg:'bg-amber-700 text-white', icon:'🥉' }
+                                            : { border:'border-slate-800', bg:'bg-slate-950', numBg:'bg-slate-800 text-slate-400', icon:null };
+                                        return (
+                                            <div key={r.uid} className={`p-4 rounded-2xl border ${rs.border} ${rs.bg} flex justify-between items-center transition-all`}>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative flex-shrink-0">
+                                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-heavy text-lg ${rs.numBg} shadow-lg`}>{idx+1}</div>
+                                                        {rs.icon && <span className="absolute -top-2 -right-2 text-base">{rs.icon}</span>}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-base font-heavy text-white">{r.name}</span>
+                                                        <div className="text-[10px] text-green-400 font-heavy mt-0.5">보너스 {formatKRW(r.count * 10000000000)}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="flex items-baseline gap-1.5 justify-end">
+                                                        <span className="text-2xl font-black text-pink-400">{r.count}</span>
+                                                        <span className="text-xs text-slate-500 font-bold">명</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-600 font-bold">누적 {r.totalAll}명</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>)}
+                        </div>
+                    )}
+
+                    {/* 상세보기 모달 */}
+                    {detailTarget && (() => {
+                        const hist = rankHistMap[detailTarget.uid] || [];
+                        const notes = notesByUid[detailTarget.uid] || [];
+                        return (
+                        <Modal title={`${detailTarget.nickname} 상세 기록`} onClose={()=>setDetailTarget(null)}>
+                            <div className="space-y-6 font-heavy">
+                                <div className="flex items-center gap-3">
+                                    <HRRankBadge rank={getEffectiveRank(detailTarget.uid)}/>
+                                    <span className="text-slate-400 text-sm">#{detailTarget.sn}</span>
+                                </div>
+                                {/* 진급 이력 */}
+                                <div className="space-y-3">
+                                    <h4 className="text-sm font-heavy text-slate-300 flex items-center gap-2"><Icon name="trending-up" size={14} className="text-amber-400"/> 진급 이력</h4>
+                                    {hist.length === 0 ? (
+                                        <p className="text-slate-600 text-sm">진급 기록이 없습니다. (기본 직급: 인턴)</p>
+                                    ) : (
+                                    <div className="space-y-2">
+                                        {hist.map((h, i) => (
+                                            <div key={h.id} className="flex items-center gap-3 bg-slate-900 rounded-xl px-4 py-2.5 border border-slate-800">
+                                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${i===0?'bg-amber-400':'bg-slate-600'}`}/>
+                                                <HRRankBadge rank={h.rank}/>
+                                                <span className="text-xs text-slate-400 font-mono">{formatDate(h.promotedAt)}</span>
+                                                <span className="text-xs text-slate-600">{h.promotedBy}</span>
+                                                {i===0 && <span className="text-[9px] text-amber-400 font-heavy ml-auto">현재</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
+                                </div>
+                                {/* 인사평가 메모 */}
+                                <div className="space-y-3">
+                                    <h4 className="text-sm font-heavy text-slate-300 flex items-center gap-2"><Icon name="clipboard-list" size={14} className="text-blue-400"/> 인사평가 메모 ({notes.length}건)</h4>
+                                    {notes.length === 0 ? (
+                                        <p className="text-slate-600 text-sm">등록된 평가 메모가 없습니다.</p>
+                                    ) : (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        {notes.map(n => (
+                                            <div key={n.id} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-blue-400 font-heavy">{n.authorName}</span>
+                                                    <span className="text-[10px] text-slate-600">{formatDate(n.createdAt)}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-300 leading-relaxed">{n.content}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
+                                </div>
+                            </div>
+                        </Modal>
+                        );
+                    })()}
+                </div>
+            );
+        }
+
         // --- Payroll View ---
-        function PayrollView({ records, allUsers, config, weekRange, weekOffset, setWeekOffset, showToast }) {
+        function PayrollView({ records, allUsers, config, weekRange, weekOffset, setWeekOffset, showToast, hrRecords }) {
             const BONUS = { 0: 10000000000, 1: 5000000000, 2: 3000000000 }; // 1등 100억, 2등 50억, 3등 30억
             const AUDIT_BONUS = 20000000000; // 감사팀 50건 이상 200억
             const AUDIT_BONUS_THRESHOLD = 50;
+            const HR_BONUS_PER = 10000000000; // 인사팀 1명 교육완료당 100억
             const PAYRATE = 0.1;
 
             const isCurrentWeek = weekOffset === 0;
@@ -2981,12 +3665,12 @@
 
             // 이벤트·가입신청 제외 사원 목록
             const employees = useMemo(() => allUsers.filter(u =>
-                u.role !== ROLES.EVENT && u.role !== ROLES.PENDING && u.sn !== '0000'
+                u.role !== ROLES.EVENT && u.role !== ROLES.PENDING && u.role !== ROLES.RESIGNED && u.sn !== '0000'
             ), [allUsers]);
 
             // 주간 판매 집계
             const payrollData = useMemo(() => {
-                const eventUids = new Set(allUsers.filter(u => u.role === ROLES.EVENT).map(u => u.uid));
+                const eventUids = new Set(allUsers.filter(u => u.role === ROLES.EVENT || u.role === ROLES.RESIGNED).map(u => u.uid));
                 const weekRecs = records.filter(r => {
                     if (eventUids.has(r.sellerUid)) return false;
                     if (r.status === 'pending' && r.auditReason) return false;
@@ -3028,12 +3712,19 @@
                     }
                     const base = Math.round(d.total * PAYRATE);
                     const rankBonus = (rank !== null && BONUS[rank]) ? BONUS[rank] : 0;
-                    // 감사팀/관리자 50건 이상 감사 처리 시 200억 보너스
                     const isAuditor = d.role === ROLES.AUDIT || d.role === ROLES.ADMIN;
                     const auditBonus = (isAuditor && d.auditCount >= AUDIT_BONUS_THRESHOLD) ? AUDIT_BONUS : 0;
-                    const bonus = rankBonus + auditBonus;
+                    // 인사팀 교육완료 건수 × 100억
+                    const hrCount = (hrRecords||[]).filter(r => {
+                        if (r.trainerId !== d.uid) return false;
+                        if (!r.completedAt) return false;
+                        const dt = new Date(r.completedAt);
+                        return dt >= weekRange.start && dt <= weekRange.end;
+                    }).length;
+                    const hrBonus = hrCount * HR_BONUS_PER;
+                    const bonus = rankBonus + auditBonus + hrBonus;
                     const weekly = base + bonus;
-                    return { ...d, rank, base, rankBonus, auditBonus, bonus, weekly };
+                    return { ...d, rank, base, rankBonus, auditBonus, hrBonus, hrCount, bonus, weekly };
                 });
             }, [payrollData]);
 
@@ -3083,6 +3774,9 @@
                             </div>
                             <div className="bg-indigo-900/20 rounded-xl px-3 py-2 border border-indigo-700/30 text-sm font-bold flex items-center gap-1.5">
                                 <span>🛡️</span><span className="text-slate-400">감사 {AUDIT_BONUS_THRESHOLD}건+</span><span className="text-indigo-400">+{formatKRW(AUDIT_BONUS)}</span>
+                            </div>
+                            <div className="bg-pink-900/20 rounded-xl px-3 py-2 border border-pink-700/30 text-sm font-bold flex items-center gap-1.5">
+                                <span>👥</span><span className="text-slate-400">교육 1명당</span><span className="text-pink-400">+{formatKRW(HR_BONUS_PER)}</span>
                             </div>
                             <p className="text-[10px] text-slate-600 font-bold ml-auto">* 0건 사원 미지급 · 이벤트 계정 제외</p>
                         </div>
@@ -3143,12 +3837,13 @@
                                                 <span className={d.total > 0 ? 'text-white' : 'text-slate-700'}>{d.total > 0 ? formatKRW(d.total) : '-'}</span>
                                             </td>
                                             <td className="px-5 py-4 text-right whitespace-nowrap">
-                                                {d.base > 0 || d.auditBonus > 0 ? (
+                                                {d.base > 0 || d.auditBonus > 0 || d.hrBonus > 0 ? (
                                                     <div className="space-y-0.5">
                                                         {d.base > 0 && <div><span className="text-slate-400 text-sm">{formatKRW(d.base)}</span>
                                                             {d.rankBonus > 0 && <span className={`ml-2 text-sm font-heavy ${rs?.bonusColor||'text-yellow-400'}`}>+{formatKRW(d.rankBonus)}</span>}
                                                         </div>}
                                                         {d.auditBonus > 0 && <div><span className="text-indigo-400 text-xs font-heavy">🛡️ 감사 {d.auditCount}건 +{formatKRW(d.auditBonus)}</span></div>}
+                                                        {d.hrBonus > 0 && <div><span className="text-pink-400 text-xs font-heavy">👥 교육 {d.hrCount}명 +{formatKRW(d.hrBonus)}</span></div>}
                                                     </div>
                                                 ) : <span className="text-slate-700">-</span>}
                                             </td>
@@ -3211,6 +3906,19 @@
             const [guideSteps, setGuideSteps] = useState(savedGuide.steps.join('\n'));
             const guideWarningsRef = React.useRef(null);
             const guideStepsRef = React.useRef(null);
+
+            // 신입 교육 체크리스트 편집
+            const savedChecklist = config.hrChecklist || DEFAULT_HR_CHECKLIST;
+            const [checklistText, setChecklistText] = useState(savedChecklist.map(c=>c.label).join('\n'));
+            const checklistRef = React.useRef(null);
+            useEffect(() => {
+                if (checklistRef.current) { checklistRef.current.style.height='auto'; checklistRef.current.style.height=checklistRef.current.scrollHeight+'px'; }
+            }, [checklistText, adminTab]);
+            const saveChecklist = async () => {
+                const items = checklistText.split('\n').map((s,i) => ({ id:'c'+(i+1), label:s.trim() })).filter(c=>c.label);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), { hrChecklist: items });
+                showToast('신입 교육 체크리스트가 저장됐습니다.');
+            };
             useEffect(() => {
                 [guideWarningsRef, guideStepsRef].forEach(ref => {
                     if (ref.current) { ref.current.style.height = 'auto'; ref.current.style.height = ref.current.scrollHeight + 'px'; }
@@ -3303,8 +4011,10 @@
                 switch(role) {
                     case ROLES.ADMIN:    return "bg-amber-500 text-black";
                     case ROLES.AUDIT:    return "bg-indigo-600 text-white";
+                    case ROLES.HR:       return "bg-pink-600 text-white";
                     case ROLES.EVENT:    return "bg-purple-600 text-white";
                     case ROLES.PENDING:  return "bg-yellow-600 text-white";
+                    case ROLES.RESIGNED: return "bg-slate-600 text-slate-400 line-through";
                     default:             return "bg-slate-700 text-slate-200";
                 }
             };
@@ -3426,6 +4136,20 @@
                         </div>
                     </section>
 
+                    {/* 신입 교육 체크리스트 편집 */}
+                    <section className="card shadow-2xl space-y-4">
+                        <h2 className="text-xl flex items-center gap-3 font-heavy"><Icon name="check-square" className="text-pink-400"/> 신입 교육 체크리스트 편집</h2>
+                        <p className="text-xs text-slate-500 font-bold">줄바꿈으로 항목을 구분합니다. 저장 즉시 인사 데스크에 반영됩니다.</p>
+                        <textarea ref={checklistRef} className="input-base font-bold resize-none text-sm" style={{minHeight:'200px', overflow:'hidden'}}
+                            value={checklistText} onChange={e=>{ setChecklistText(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                            placeholder={"체크리스트 항목 1\n체크리스트 항목 2\n..."}/>
+                        <div className="flex justify-end">
+                            <button onClick={saveChecklist} className="btn btn-blue px-8 py-2.5 text-sm font-heavy flex items-center gap-2">
+                                <Icon name="save" size={15}/> 저장 및 반영
+                            </button>
+                        </div>
+                    </section>
+
                     </>)}
 
                     {adminTab === 'members' && (<>
@@ -3506,7 +4230,7 @@
                                                         </td>
                                                         <td className="p-4 text-center">
                                                             <div className="flex flex-wrap justify-center gap-1.5 max-w-[340px] mx-auto">
-                                                                {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.ADMIN, ROLES.EVENT].map(role => (
+                                                                {[ROLES.EMPLOYEE, ROLES.AUDIT, ROLES.HR, ROLES.ADMIN, ROLES.EVENT, ROLES.RESIGNED].map(role => (
                                                                     <button key={role} onClick={() => isAdmin && updateUser(u.uid, {role})} disabled={!isAdmin}
                                                                         className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${u.role === role ? getRoleStyles(role) + ' shadow-lg scale-105' : 'bg-slate-950 text-slate-600 border border-slate-800 hover:border-slate-600'} ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}>
                                                                         {role}
