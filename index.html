@@ -81,7 +81,7 @@
         .app-shell { display: flex; min-height: 100vh; width: 100%; overflow-x: hidden; }
         .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: fixed; top: 0; left: 0; height: 100vh; flex-shrink: 0; z-index: 40; overflow: hidden; }
         .main-area { flex: 1; min-width: 0; max-width: 100%; padding: 1.5rem; overflow-x: hidden; margin-left: 240px; }
-        .mobile-topbar { display: none; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0.75rem 1rem; position: sticky; top: 0; z-index: 40; align-items: center; justify-content: space-between; }
+        .mobile-topbar { display: none; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0.75rem 1rem; position: sticky; top: 0; z-index: 60; align-items: center; justify-content: space-between; }
         .mobile-bottomnav { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #0f172a; border-top: 1px solid #1e293b; padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom)); }
         .mobile-bottomnav-inner { display: flex; justify-content: space-around; align-items: center; }
         .mob-btn { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.4rem 0.75rem; border-radius: 0.6rem; background: none; border: none; cursor: pointer; color: #64748b; font-size: 0.6rem; font-weight: 800; font-family: inherit; transition: 0.2s; min-width: 52px; }
@@ -89,16 +89,16 @@
         .mob-btn:hover { color: #94a3b8; }
 
         @media (max-width: 767px) {
-            .sidebar { display: none; }
+            .sidebar { display: none !important; }
             .mobile-topbar { display: flex; }
             .mobile-bottomnav { display: block; }
-            .main-area { margin-left: 0; padding: 0.75rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom)); }
+            .app-shell { flex-direction: column; }
+            .main-area { margin-left: 0 !important; padding: 0.875rem 0.875rem calc(5.5rem + env(safe-area-inset-bottom)); }
             .card { border-radius: 0.875rem; padding: 0.875rem; }
             h1,h2 { font-size: 1.1rem !important; }
             h3 { font-size: 1rem !important; }
             .hide-mobile { display: none !important; }
             .full-mobile { width: 100% !important; max-width: 100% !important; }
-            .app-shell { overflow-x: hidden; }
         }
         @media (min-width: 768px) and (max-width: 1023px) {
             .sidebar { width: 180px; min-width: 180px; padding: 0.875rem; overflow: hidden; }
