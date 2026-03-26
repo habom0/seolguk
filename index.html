@@ -37,7 +37,8 @@
 
         /* ══ Base ══ */
         * { box-sizing: border-box; }
-        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-base); color: var(--text-main); font-weight: 700; transition: background-color 0.3s, color 0.3s; margin:0; }
+        html { overflow-x: hidden; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-base); color: var(--text-main); font-weight: 700; transition: background-color 0.3s, color 0.3s; margin:0; overflow-x: hidden; width: 100%; }
         .font-heavy { font-weight: 900; }
 
         /* ══ Components ══ */
@@ -77,9 +78,9 @@
         .modal-overlay > div::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
 
         /* ══ Layout ══ */
-        .app-shell { display: flex; min-height: 100vh; }
-        .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; z-index: 40; }
-        .main-area { flex: 1; min-width: 0; padding: 1.5rem; overflow-x: hidden; }
+        .app-shell { display: flex; min-height: 100vh; width: 100%; overflow-x: hidden; }
+        .sidebar { width: 240px; min-width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.25rem; position: fixed; top: 0; left: 0; height: 100vh; flex-shrink: 0; z-index: 40; overflow: hidden; }
+        .main-area { flex: 1; min-width: 0; max-width: 100%; padding: 1.5rem; overflow-x: hidden; margin-left: 240px; }
         .mobile-topbar { display: none; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0.75rem 1rem; position: sticky; top: 0; z-index: 40; align-items: center; justify-content: space-between; }
         .mobile-bottomnav { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #0f172a; border-top: 1px solid #1e293b; padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom)); }
         .mobile-bottomnav-inner { display: flex; justify-content: space-around; align-items: center; }
@@ -91,7 +92,7 @@
             .sidebar { display: none; }
             .mobile-topbar { display: flex; }
             .mobile-bottomnav { display: block; }
-            .main-area { padding: 0.75rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom)); }
+            .main-area { margin-left: 0; padding: 0.75rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom)); }
             .card { border-radius: 0.875rem; padding: 0.875rem; }
             h1,h2 { font-size: 1.1rem !important; }
             h3 { font-size: 1rem !important; }
@@ -100,8 +101,8 @@
             .app-shell { overflow-x: hidden; }
         }
         @media (min-width: 768px) and (max-width: 1023px) {
-            .sidebar { width: 180px; min-width: 180px; padding: 0.875rem; }
-            .main-area { padding: 1rem; }
+            .sidebar { width: 180px; min-width: 180px; padding: 0.875rem; overflow: hidden; }
+            .main-area { margin-left: 180px; padding: 1rem; }
         }
         /* 모바일 하단 네비 스크롤 대응 */
         @media (max-width: 767px) {
@@ -608,7 +609,7 @@
 
             if (isInitialLoading) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center bg-[#020617] text-white">
+                    <div style={{minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', background:'#020617', color:'white'}}>
                         <div className="text-center">
                             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mx-auto mb-4"></div>
                             <p className="font-heavy text-slate-500">데이터 로딩 중...</p>
@@ -619,8 +620,8 @@
 
             if (!user) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center p-4">
-                        <div className="card login-card w-full max-w-md shadow-2xl border-slate-800 text-center font-bold">
+                    <div style={{minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', background:'#020617'}}>
+                        <div className="card login-card w-full shadow-2xl border-slate-800 text-center font-bold" style={{maxWidth:'28rem'}}>
                             <div className="text-6xl mb-4">❄️</div>
                             <h1 className="text-3xl font-heavy mb-1">설국 인트라넷</h1>
                             <p className="text-blue-400 text-xs font-heavy mb-8">ver.3.9</p>
@@ -677,7 +678,7 @@
             // 가입신청 대기 화면
             if (user && user.role === ROLES.PENDING) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center p-4" style={{background:'#020617'}}>
+                    <div style={{minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', background:'#020617'}}>
                         <div className="card login-card w-full max-w-md shadow-2xl text-center space-y-6">
                             <div className="text-6xl">⏳</div>
                             <h2 className="text-2xl font-heavy text-white">가입 승인 대기 중</h2>
@@ -729,7 +730,7 @@
                                 <div className="text-[9px] text-blue-400 font-heavy bg-blue-500/10 px-1.5 py-0.5 rounded-md border border-blue-500/20 w-fit mt-0.5">ver.3.9</div>
                             </div>
                         </div>
-                        <div className="flex-1 space-y-1">
+                        <div className="flex-1 space-y-1 min-h-0">
                             <NavItem active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} icon="layout-dashboard" label="대시보드" />
                             <NavItem active={activeTab==='ledger'} onClick={()=>setActiveTab('ledger')} icon="clipboard-list" label="전체 장부" />
                             <NavItem active={activeTab==='ranking'} onClick={()=>setActiveTab('ranking')} icon="trophy" label="판매 랭킹" />
