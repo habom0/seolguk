@@ -590,26 +590,18 @@
                 return { start, end };
             }, [weekOffset, config.weekStartDay]);
 
-            // 현재 조회 중인 주의 weekKey
             const currentWeekKey = weekRange.start.toISOString().slice(0,10);
-
-            // 이번 주 스냅샷 (offset=0일 때만)
             const currentSnap = useMemo(() =>
                 weekOffset === 0 ? (payrollSnapshots||[]).find(s => s.weekKey === currentWeekKey) : null,
                 [payrollSnapshots, weekOffset, currentWeekKey]
             );
-
-            // 조회 중인 주의 스냅샷 (과거 주 포함)
             const viewSnap = useMemo(() =>
                 (payrollSnapshots||[]).find(s => s.weekKey === currentWeekKey),
                 [payrollSnapshots, currentWeekKey]
             );
-
-            // 이전 주 스냅샷 — 이번 주 정산 시작점
             const prevWeekKey = useMemo(() => {
                 const d = new Date(weekRange.start);
-                d.setDate(d.getDate() - 1); // weekRange.start 하루 전 = 이전 주 마지막날
-                // 이전 주 weekRange.start 구하기
+                d.setDate(d.getDate() - 1);
                 const day = d.getDay();
                 const startDay = config.weekStartDay ?? 1;
                 const diff = (day < startDay) ? (day + 7 - startDay) : (day - startDay);
@@ -618,19 +610,14 @@
                 prevStart.setHours(0,0,0,0);
                 return prevStart.toISOString().slice(0,10);
             }, [weekRange, config.weekStartDay]);
-
             const prevSnap = useMemo(() =>
                 (payrollSnapshots||[]).find(s => s.weekKey === prevWeekKey),
                 [payrollSnapshots, prevWeekKey]
             );
-
-            // 이번 주 집계 시작점: 이전 주 정산 확정 시각 이후 (없으면 weekRange.start 00시)
             const weekStart = useMemo(() =>
                 prevSnap ? new Date(prevSnap.cutoffAt) : weekRange.start,
                 [prevSnap, weekRange]
             );
-
-            // 이번 주 집계 종료점: 현재 주 정산 확정 시각 (없으면 지금 or weekRange.end)
             const weekCutoff = useMemo(() => {
                 if (weekOffset === 0) return currentSnap ? new Date(currentSnap.cutoffAt) : new Date();
                 return viewSnap ? new Date(viewSnap.cutoffAt) : weekRange.end;
@@ -2685,7 +2672,7 @@
             );
         }
 
-        function RankingView({ records, allUsers, config, weekCutoff, weekStart }) {
+        function RankingView({ records, allUsers, config, weekStart, weekCutoff }) {
             const [weekOffset, setWeekOffset] = useState(0);
 
             const weekRange = useMemo(() => {
@@ -2726,7 +2713,7 @@
                         s[key].deposit += (r.totalAmount || 0) * 0.5;
                     });
                 return Object.values(s).sort((a, b) => b.count - a.count);
-            }, [records, allUsers, weekRange, weekCutoff, weekOffset]);
+            }, [records, allUsers, weekRange]);
 
             const podium = [data[1], data[0], data[2]];
 
@@ -3749,12 +3736,10 @@
             const isCurrentWeek = weekOffset === 0;
             const weekLabel = isCurrentWeek ? '이번 주' : weekOffset === -1 ? '지난 주' : `${Math.abs(weekOffset)}주 전`;
 
-            // 정산 기준 요일: config.payrollDay 우선, 없으면 weekStartDay 전날
             const payrollDay = config?.payrollDay !== undefined ? config.payrollDay : ((config?.weekStartDay ?? 1) + 6) % 7;
             const todayDay = new Date().getDay();
             const isPayrollDay = isCurrentWeek && todayDay === payrollDay;
 
-            // 집계 범위: 이전 주 cutoff 이후 ~ 이번 주 cutoff (누락 없이)
             const rangeStart = weekStart || weekRange.start;
             const rangeEnd = weekCutoff || weekRange.end;
 
@@ -3768,12 +3753,9 @@
                 setSnapshotting(true);
                 const weekKey = weekRange.start.toISOString().slice(0,10);
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payroll_snapshots', 'ps_' + weekKey), {
-                    weekKey,
-                    weekStart: weekRange.start.toISOString(),
-                    weekEnd: weekRange.end.toISOString(),
-                    cutoffAt: now.toISOString(),
-                    confirmedBy: user.nickname,
-                });
+                    weekKey, weekStart: weekRange.start.toISOString(), weekEnd: weekRange.end.toISOString(),
+                    cutoffAt: now.toISOString(), confirmedBy: user.nickname,
+                }, { merge: true });
                 setSnapshotting(false);
                 showToast(`✅ ${timeStr} 기준으로 주급 정산이 확정됐습니다.`);
             };
@@ -3798,18 +3780,14 @@
                 }).forEach(r => { auditCounts[r.auditorName] = (auditCounts[r.auditorName] || 0) + 1; });
                 const map = {};
                 employees.forEach(u => { map[u.uid] = { uid: u.uid, name: u.nickname, sn: u.sn, role: u.role, count: 0, total: 0, auditCount: auditCounts[u.nickname] || 0 }; });
-                weekRecs.forEach(r => {
-                    if (map[r.sellerUid]) { map[r.sellerUid].count++; map[r.sellerUid].total += r.totalAmount || 0; }
-                });
+                weekRecs.forEach(r => { if (map[r.sellerUid]) { map[r.sellerUid].count++; map[r.sellerUid].total += r.totalAmount || 0; } });
                 return Object.values(map).sort((a, b) => b.count - a.count || b.total - a.total);
             }, [records, employees, allUsers, rangeStart, rangeEnd]);
 
             const rankedData = useMemo(() => {
-                return payrollData.map((d, idx) => {
+                return payrollData.map((d) => {
                     let rank = null;
-                    if (d.count > 0) {
-                        rank = payrollData.filter((x, i) => i < payrollData.indexOf(d) && (x.count > d.count || (x.count === d.count && x.total > d.total))).length;
-                    }
+                    if (d.count > 0) rank = payrollData.filter(x => x.count > d.count || (x.count === d.count && x.total > d.total)).length;
                     const base = Math.round(d.total * PAYRATE);
                     const rankBonus = (rank !== null && BONUS[rank]) ? BONUS[rank] : 0;
                     const isAuditor = d.role === ROLES.AUDIT || d.role === ROLES.ADMIN;
@@ -3833,27 +3811,21 @@
                 { bg:'bg-amber-900/15 border-amber-700/40',   num:'bg-amber-700 text-white',  bonusColor:'text-amber-400' },
             ];
 
-            // 수령 체크 상태 — viewSnap에서 읽어오기 (이번 주 + 과거 주 모두)
+            // 수령 체크 — viewSnap이 있는 주(정산 확정된 주)에만 활성화
             const [received, setReceived] = useState({});
-
             React.useEffect(() => {
                 if (viewSnap?.received) setReceived(viewSnap.received);
                 else setReceived({});
-            }, [viewSnap?.id, viewSnap?.weekKey]);
-
+            }, [viewSnap?.weekKey]);
             const toggleReceived = async (uid) => {
                 const next = { ...received, [uid]: !received[uid] };
                 setReceived(next);
                 const weekKey = weekRange.start.toISOString().slice(0,10);
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payroll_snapshots', 'ps_' + weekKey), {
-                    received: next
-                });
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payroll_snapshots', 'ps_' + weekKey), { weekKey, received: next }, { merge: true });
             };
-
             const payableList = rankedData.filter(d => d.weekly > 0);
             const receivedCount = payableList.filter(d => received[d.uid]).length;
             const unreceivedList = payableList.filter(d => !received[d.uid]);
-
             const copyUnreceived = () => {
                 if (unreceivedList.length === 0) return showToast('미수령자가 없습니다.');
                 const startStr = weekRange.start.toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'});
@@ -3864,9 +3836,13 @@
                 showToast(`미수령 ${unreceivedList.length}명 복사됨`);
             };
 
+            const saveWeekStartDayAdmin = async (payrollDayVal) => {
+                const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+                await updateDoc(configDoc, { payrollDay: payrollDayVal });
+            };
+
             return (
                 <div className="space-y-6 font-bold animate-fade-in">
-                    {/* 헤더 */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h2 className="text-2xl text-white flex items-center gap-3 font-heavy">
                             <Icon name="banknote" className="text-green-400" size={24}/> 주급 정산
@@ -3877,14 +3853,13 @@
                                 <span className={`text-sm font-heavy ${isCurrentWeek?'text-blue-400':'text-slate-300'}`}>{weekLabel}</span>
                                 <span className="text-slate-600 text-xs ml-2">{weekRange.start.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} ~ {weekRange.end.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})}</span>
                             </div>
-                            <button onClick={()=>setWeekOffset(w=>Math.min(w+1,0))} disabled={isCurrentWeek}
-                                className={`transition-all ${isCurrentWeek?'text-slate-700 cursor-not-allowed':'text-slate-400 hover:text-blue-400'}`}>
+                            <button onClick={()=>setWeekOffset(w=>Math.min(w+1,0))} disabled={isCurrentWeek} className={`transition-all ${isCurrentWeek?'text-slate-700 cursor-not-allowed':'text-slate-400 hover:text-blue-400'}`}>
                                 <Icon name="chevron-right" size={18}/>
                             </button>
                         </div>
                     </div>
 
-                    {/* 정산 확정 버튼 — 이번 주만 표시 */}
+                    {/* 정산 확정 버튼 — 이번 주만 */}
                     {isCurrentWeek && (
                         <div className={`card border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${currentSnap ? 'border-green-700/40 bg-green-900/10' : isPayrollDay ? 'border-blue-700/40 bg-blue-900/5' : 'border-slate-700/50'}`}>
                             <div className="space-y-0.5">
@@ -3912,41 +3887,8 @@
                         </div>
                     )}
 
-                    {/* 주급 산정 기준 */}
-                    <div className="card border border-slate-700/50">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <span className="text-xs text-slate-500 font-heavy uppercase flex items-center gap-1"><Icon name="info" size={12}/> 산정 기준</span>
-                            <div className="bg-slate-900 rounded-xl px-3 py-2 border border-slate-800 text-sm font-bold">
-                                <span className="text-slate-500">기본 주급</span><span className="text-green-400 ml-1.5">총매출 × 10%</span>
-                            </div>
-                            <div className="bg-yellow-900/20 rounded-xl px-3 py-2 border border-yellow-700/30 text-sm font-bold flex items-center gap-1.5">
-                                <span>👑</span><span className="text-slate-400">1위</span><span className="text-yellow-400">+{formatKRW(BONUS[0])}</span>
-                            </div>
-                            <div className="bg-slate-700/20 rounded-xl px-3 py-2 border border-slate-500/30 text-sm font-bold flex items-center gap-1.5">
-                                <span>🥈</span><span className="text-slate-400">2위</span><span className="text-slate-300">+{formatKRW(BONUS[1])}</span>
-                            </div>
-                            <div className="bg-amber-900/15 rounded-xl px-3 py-2 border border-amber-700/30 text-sm font-bold flex items-center gap-1.5">
-                                <span>🥉</span><span className="text-slate-400">3위</span><span className="text-amber-400">+{formatKRW(BONUS[2])}</span>
-                            </div>
-                            <div className="bg-indigo-900/20 rounded-xl px-3 py-2 border border-indigo-700/30 text-sm font-bold flex items-center gap-1.5">
-                                <span>🛡️</span><span className="text-slate-400">감사 {AUDIT_BONUS_THRESHOLD}건+</span><span className="text-indigo-400">+{formatKRW(AUDIT_BONUS)}</span>
-                            </div>
-                            <div className="bg-pink-900/20 rounded-xl px-3 py-2 border border-pink-700/30 text-sm font-bold flex items-center gap-1.5">
-                                <span>👥</span><span className="text-slate-400">교육 1명당</span><span className="text-pink-400">+{formatKRW(HR_BONUS_PER)}</span>
-                            </div>
-                            <p className="text-[10px] text-slate-600 font-bold ml-auto">* 0건 미지급 · 이벤트 계정 제외</p>
-                        </div>
-                    </div>
-
-                    {/* 요약 */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">정산 인원</p><p className="text-2xl font-heavy text-white">{rankedData.filter(d=>d.count>0).length}<span className="text-sm text-slate-500 ml-1">명</span></p></div>
-                        <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">주간 총 매출</p><p className="text-2xl font-heavy text-white">{formatKRW(rankedData.reduce((s,d)=>s+d.total,0))}</p></div>
-                        <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">총 지급액</p><p className="text-2xl font-heavy text-green-400">{formatKRW(totalPayout)}</p></div>
-                    </div>
-
-                    {/* 수령 현황 */}
-                    {viewSnap && payableList.length > 0 && (
+                    {/* 수령 현황 — 정산 확정된 주에만 표시 */}
+                    {(!isCurrentWeek || viewSnap) && payableList.length > 0 && (
                         <div className="card border border-slate-700/50 space-y-3">
                             <div className="flex items-center justify-between flex-wrap gap-3">
                                 <div className="flex items-center gap-3">
@@ -3973,6 +3915,27 @@
                         </div>
                     )}
 
+                    {/* 주급 산정 기준 */}
+                    <div className="card border border-slate-700/50">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-xs text-slate-500 font-heavy uppercase flex items-center gap-1"><Icon name="info" size={12}/> 산정 기준</span>
+                            <div className="bg-slate-900 rounded-xl px-3 py-2 border border-slate-800 text-sm font-bold"><span className="text-slate-500">기본 주급</span><span className="text-green-400 ml-1.5">총매출 × 10%</span></div>
+                            <div className="bg-yellow-900/20 rounded-xl px-3 py-2 border border-yellow-700/30 text-sm font-bold flex items-center gap-1.5"><span>👑</span><span className="text-slate-400">1위</span><span className="text-yellow-400">+{formatKRW(BONUS[0])}</span></div>
+                            <div className="bg-slate-700/20 rounded-xl px-3 py-2 border border-slate-500/30 text-sm font-bold flex items-center gap-1.5"><span>🥈</span><span className="text-slate-400">2위</span><span className="text-slate-300">+{formatKRW(BONUS[1])}</span></div>
+                            <div className="bg-amber-900/15 rounded-xl px-3 py-2 border border-amber-700/30 text-sm font-bold flex items-center gap-1.5"><span>🥉</span><span className="text-slate-400">3위</span><span className="text-amber-400">+{formatKRW(BONUS[2])}</span></div>
+                            <div className="bg-indigo-900/20 rounded-xl px-3 py-2 border border-indigo-700/30 text-sm font-bold flex items-center gap-1.5"><span>🛡️</span><span className="text-slate-400">감사 {AUDIT_BONUS_THRESHOLD}건+</span><span className="text-indigo-400">+{formatKRW(AUDIT_BONUS)}</span></div>
+                            <div className="bg-pink-900/20 rounded-xl px-3 py-2 border border-pink-700/30 text-sm font-bold flex items-center gap-1.5"><span>👥</span><span className="text-slate-400">교육 1명당</span><span className="text-pink-400">+{formatKRW(HR_BONUS_PER)}</span></div>
+                            <p className="text-[10px] text-slate-600 font-bold ml-auto">* 0건 미지급 · 이벤트 계정 제외</p>
+                        </div>
+                    </div>
+
+                    {/* 요약 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">정산 인원</p><p className="text-2xl font-heavy text-white">{rankedData.filter(d=>d.count>0).length}<span className="text-sm text-slate-500 ml-1">명</span></p></div>
+                        <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">주간 총 매출</p><p className="text-2xl font-heavy text-white">{formatKRW(rankedData.reduce((s,d)=>s+d.total,0))}</p></div>
+                        <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">총 지급액</p><p className="text-2xl font-heavy text-green-400">{formatKRW(totalPayout)}</p></div>
+                    </div>
+
                     {/* 정산 테이블 */}
                     <div className="card p-0 overflow-hidden shadow-2xl">
                         <div className="overflow-x-auto">
@@ -3986,7 +3949,7 @@
                                         <th className="px-5 py-4 text-right whitespace-nowrap">기본주급 · 보너스</th>
                                         <th className="px-5 py-4 text-right whitespace-nowrap text-green-400">최종 주급</th>
                                         <th className="px-5 py-4 text-center whitespace-nowrap">복사</th>
-                                        {viewSnap && <th className="px-5 py-4 text-center whitespace-nowrap text-blue-400">수령</th>}
+                                        {(!isCurrentWeek || viewSnap) && <th className="px-5 py-4 text-center whitespace-nowrap text-blue-400">수령</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 text-white font-heavy">
@@ -3994,7 +3957,7 @@
                                         const rs = d.rank !== null && rankStyles[d.rank] ? rankStyles[d.rank] : null;
                                         const isReceived = !!received[d.uid];
                                         return (
-                                        <tr key={d.uid} className={`transition-colors ${isReceived ? 'opacity-50' : ''} ${rs?`${rs.bg} border-l-4`:'hover:bg-slate-800/30'}`}>
+                                        <tr key={d.uid} className={`transition-colors ${isReceived?'opacity-50':''} ${rs?`${rs.bg} border-l-4`:'hover:bg-slate-800/30'}`}>
                                             <td className="px-5 py-4 whitespace-nowrap">
                                                 {rs ? <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-heavy text-sm ${rs.num} shadow-lg`}>{d.rank+1}</div>
                                                      : <div className="w-9 h-9 rounded-xl flex items-center justify-center font-heavy text-sm bg-slate-800 text-slate-500">{d.count>0?idx+1:'-'}</div>}
@@ -4002,7 +3965,7 @@
                                             <td className="px-5 py-4 whitespace-nowrap">
                                                 <div className="font-heavy text-base flex items-center gap-2">
                                                     {d.name}
-                                                    {isReceived && <span className="text-[10px] bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded-md border border-green-700/40 font-heavy">수령완료</span>}
+                                                    {isReceived && <span className="text-[10px] bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded-md border border-green-700/40">수령완료</span>}
                                                 </div>
                                                 <div className="text-[10px] text-slate-600">#{d.sn}</div>
                                             </td>
@@ -4011,7 +3974,7 @@
                                             <td className="px-5 py-4 text-right whitespace-nowrap">
                                                 {d.base>0||d.auditBonus>0||d.hrBonus>0 ? (
                                                     <div className="space-y-0.5">
-                                                        {d.base>0 && <div><span className="text-slate-400 text-sm">{formatKRW(d.base)}</span>{d.rankBonus>0&&<span className={`ml-2 text-sm font-heavy ${rs?.bonusColor||'text-yellow-400'}`}>+{formatKRW(d.rankBonus)}</span>}</div>}
+                                                        {d.base>0&&<div><span className="text-slate-400 text-sm">{formatKRW(d.base)}</span>{d.rankBonus>0&&<span className={`ml-2 text-sm font-heavy ${rs?.bonusColor||'text-yellow-400'}`}>+{formatKRW(d.rankBonus)}</span>}</div>}
                                                         {d.auditBonus>0&&<div><span className="text-indigo-400 text-xs font-heavy">🛡️ {d.auditCount}건 +{formatKRW(d.auditBonus)}</span></div>}
                                                         {d.hrBonus>0&&<div><span className="text-pink-400 text-xs font-heavy">👥 {d.hrCount}명 +{formatKRW(d.hrBonus)}</span></div>}
                                                     </div>
@@ -4022,14 +3985,10 @@
                                                 {d.weekly>0 ? <button onClick={()=>{copyToClipboard(String(d.weekly));showToast(`${d.name} 주급 복사됨`);}} className="p-2 bg-green-600/10 hover:bg-green-600/25 text-green-400 rounded-lg transition-all"><Icon name="copy" size={15}/></button>
                                                              : <span className="text-slate-700">-</span>}
                                             </td>
-                                            {viewSnap && (
+                                            {(!isCurrentWeek || viewSnap) && (
                                                 <td className="px-5 py-4 text-center whitespace-nowrap">
-                                                    {d.weekly > 0 ? (
-                                                        <button onClick={() => toggleReceived(d.uid)}
-                                                            className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${isReceived ? 'bg-green-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-500 border border-slate-700'}`}>
-                                                            <Icon name="check" size={15}/>
-                                                        </button>
-                                                    ) : <span className="text-slate-700">-</span>}
+                                                    {d.weekly>0 ? <button onClick={()=>toggleReceived(d.uid)} className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${isReceived?'bg-green-600 text-white':'bg-slate-800 hover:bg-slate-700 text-slate-500 border border-slate-700'}`}><Icon name="check" size={15}/></button>
+                                                                : <span className="text-slate-700">-</span>}
                                                 </td>
                                             )}
                                         </tr>
@@ -4163,12 +4122,10 @@
                 setItemOrder(newOrder);
             };
 
-            const saveWeekStartDay = async (day) => {
+            const saveWeekStartDay = async (payrollDay) => {
                 const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
-                // day = 정산 기준 요일 (선택한 요일 그대로)
-                // weekStartDay = 주 시작일 = 정산일 다음날
-                const weekStartDay = (day + 1) % 7;
-                await updateDoc(configDoc, { weekStartDay, payrollDay: day });
+                const weekStartDay = (payrollDay + 1) % 7;
+                await updateDoc(configDoc, { weekStartDay, payrollDay });
                 showToast("정산 기준 요일이 변경되었습니다.");
             };
 
@@ -4225,7 +4182,7 @@
                             <div className="flex flex-wrap gap-2">
                                 {WEEK_DAYS.map((label, idx) => (
                                     <button key={idx} onClick={() => saveWeekStartDay(idx)}
-                                        className={`px-3 py-2 rounded-xl font-heavy text-xs transition-all ${(config.payrollDay !== undefined ? config.payrollDay : ((config.weekStartDay + 6) % 7)) === idx ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
+                                        className={`px-3 py-2 rounded-xl font-heavy text-xs transition-all ${(config.payrollDay !== undefined ? config.payrollDay : ((config.weekStartDay+6)%7)) === idx ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
                                         매주 {label}
                                     </button>
                                 ))}
