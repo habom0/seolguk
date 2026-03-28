@@ -3833,6 +3833,24 @@
                 { bg:'bg-amber-900/15 border-amber-700/40',   num:'bg-amber-700 text-white',  bonusColor:'text-amber-400' },
             ];
 
+            // 수령 체크 상태 (uid → true/false)
+            const [received, setReceived] = useState({});
+            const toggleReceived = (uid) => setReceived(prev => ({ ...prev, [uid]: !prev[uid] }));
+
+            const payableList = rankedData.filter(d => d.weekly > 0);
+            const receivedCount = payableList.filter(d => received[d.uid]).length;
+            const unreceivedList = payableList.filter(d => !received[d.uid]);
+
+            const copyUnreceived = () => {
+                if (unreceivedList.length === 0) return showToast('미수령자가 없습니다.');
+                const startStr = weekRange.start.toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'});
+                const endStr = weekRange.end.toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'});
+                const title = `# 💰 주급 미수령자 안내 (${startStr} ~ ${endStr})`;
+                const lines = unreceivedList.map(d => `> ${d.name}(${d.sn}) - ${formatKRW(d.weekly)}`).join('\n');
+                copyToClipboard(`${title}\n${lines}`);
+                showToast(`미수령 ${unreceivedList.length}명 복사됨`);
+            };
+
             return (
                 <div className="space-y-6 font-bold animate-fade-in">
                     {/* 헤더 */}
@@ -3914,6 +3932,34 @@
                         <div className="card space-y-1"><p className="text-xs text-slate-500 font-heavy uppercase">총 지급액</p><p className="text-2xl font-heavy text-green-400">{formatKRW(totalPayout)}</p></div>
                     </div>
 
+                    {/* 수령 현황 */}
+                    {isCurrentWeek && currentSnap && payableList.length > 0 && (
+                        <div className="card border border-slate-700/50 space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-heavy text-white flex items-center gap-2"><Icon name="check-square" size={16} className="text-green-400"/> 주급 수령 현황</span>
+                                    <span className="text-xs font-heavy px-2.5 py-1 rounded-lg bg-green-900/30 text-green-400 border border-green-700/40">{receivedCount} / {payableList.length} 수령</span>
+                                    {unreceivedList.length > 0 && <span className="text-xs font-heavy px-2.5 py-1 rounded-lg bg-orange-900/30 text-orange-400 border border-orange-700/40">미수령 {unreceivedList.length}명</span>}
+                                </div>
+                                {unreceivedList.length > 0 && (
+                                    <button onClick={copyUnreceived} className="flex items-center gap-2 px-4 py-2 bg-orange-600/20 hover:bg-orange-600/35 text-orange-300 rounded-xl text-xs font-heavy border border-orange-600/40 transition-all">
+                                        <Icon name="copy" size={13}/> 미수령자 공지 복사
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {payableList.map(d => (
+                                    <button key={d.uid} onClick={() => toggleReceived(d.uid)}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-heavy border transition-all ${received[d.uid] ? 'bg-green-900/30 border-green-600/50 text-green-300' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                                        <Icon name={received[d.uid] ? 'check-circle' : 'circle'} size={13} className={received[d.uid] ? 'text-green-400' : 'text-slate-600'}/>
+                                        {d.name}
+                                        <span className={received[d.uid] ? 'text-green-500' : 'text-slate-600'}>{formatKRW(d.weekly)}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* 정산 테이블 */}
                     <div className="card p-0 overflow-hidden shadow-2xl">
                         <div className="overflow-x-auto">
@@ -3927,18 +3973,26 @@
                                         <th className="px-5 py-4 text-right whitespace-nowrap">기본주급 · 보너스</th>
                                         <th className="px-5 py-4 text-right whitespace-nowrap text-green-400">최종 주급</th>
                                         <th className="px-5 py-4 text-center whitespace-nowrap">복사</th>
+                                        {isCurrentWeek && currentSnap && <th className="px-5 py-4 text-center whitespace-nowrap text-blue-400">수령</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 text-white font-heavy">
                                     {rankedData.map((d, idx) => {
                                         const rs = d.rank !== null && rankStyles[d.rank] ? rankStyles[d.rank] : null;
+                                        const isReceived = !!received[d.uid];
                                         return (
-                                        <tr key={d.uid} className={`transition-colors ${rs?`${rs.bg} border-l-4`:'hover:bg-slate-800/30'}`}>
+                                        <tr key={d.uid} className={`transition-colors ${isReceived ? 'opacity-50' : ''} ${rs?`${rs.bg} border-l-4`:'hover:bg-slate-800/30'}`}>
                                             <td className="px-5 py-4 whitespace-nowrap">
                                                 {rs ? <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-heavy text-sm ${rs.num} shadow-lg`}>{d.rank+1}</div>
                                                      : <div className="w-9 h-9 rounded-xl flex items-center justify-center font-heavy text-sm bg-slate-800 text-slate-500">{d.count>0?idx+1:'-'}</div>}
                                             </td>
-                                            <td className="px-5 py-4 whitespace-nowrap"><div className="font-heavy text-base">{d.name}</div><div className="text-[10px] text-slate-600">#{d.sn}</div></td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <div className="font-heavy text-base flex items-center gap-2">
+                                                    {d.name}
+                                                    {isReceived && <span className="text-[10px] bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded-md border border-green-700/40 font-heavy">수령완료</span>}
+                                                </div>
+                                                <div className="text-[10px] text-slate-600">#{d.sn}</div>
+                                            </td>
                                             <td className="px-5 py-4 text-center whitespace-nowrap"><span className={`font-black text-xl ${d.count>0?'text-blue-400':'text-slate-700'}`}>{d.count}</span><span className="text-[10px] text-slate-600 ml-1">건</span></td>
                                             <td className="px-5 py-4 text-right whitespace-nowrap"><span className={d.total>0?'text-white':'text-slate-700'}>{d.total>0?formatKRW(d.total):'-'}</span></td>
                                             <td className="px-5 py-4 text-right whitespace-nowrap">
@@ -3955,6 +4009,16 @@
                                                 {d.weekly>0 ? <button onClick={()=>{copyToClipboard(String(d.weekly));showToast(`${d.name} 주급 복사됨`);}} className="p-2 bg-green-600/10 hover:bg-green-600/25 text-green-400 rounded-lg transition-all"><Icon name="copy" size={15}/></button>
                                                              : <span className="text-slate-700">-</span>}
                                             </td>
+                                            {isCurrentWeek && currentSnap && (
+                                                <td className="px-5 py-4 text-center whitespace-nowrap">
+                                                    {d.weekly > 0 ? (
+                                                        <button onClick={() => toggleReceived(d.uid)}
+                                                            className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${isReceived ? 'bg-green-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-500 border border-slate-700'}`}>
+                                                            <Icon name="check" size={15}/>
+                                                        </button>
+                                                    ) : <span className="text-slate-700">-</span>}
+                                                </td>
+                                            )}
                                         </tr>
                                         );
                                     })}
