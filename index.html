@@ -835,7 +835,7 @@
                         {activeTab === 'ranking' && <RankingView records={records} allUsers={allUsers} config={config} weekStart={weekStart} weekCutoff={weekCutoff} />}
                         {activeTab === 'blacklist' && <BlacklistView blacklist={blacklist} user={user} showToast={showToast} />}
                         {activeTab === 'audit' && <AuditView records={records} user={user} allUsers={allUsers} showToast={showToast} config={config} sendNotification={sendNotification} blacklist={blacklist} />}
-                        {activeTab === 'payroll' && <PayrollView records={records} allUsers={allUsers} config={config} weekRange={weekRange} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showToast={showToast} hrRecords={hrRecords} payrollSnapshots={payrollSnapshots} currentSnap={currentSnap} user={user} weekStart={weekStart} weekCutoff={weekCutoff} />}
+                        {activeTab === 'payroll' && <PayrollView records={records} allUsers={allUsers} config={config} weekRange={weekRange} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showToast={showToast} hrRecords={hrRecords} payrollSnapshots={payrollSnapshots} currentSnap={currentSnap} viewSnap={viewSnap} user={user} weekStart={weekStart} weekCutoff={weekCutoff} />}
                         {activeTab === 'hr' && <HRView allUsers={allUsers} hrRecords={hrRecords} hrNotes={hrNotes} hrRanks={hrRanks} hrRankHistory={hrRankHistory} user={user} showToast={showToast} weekRange={weekRange} weekOffset={weekOffset} setWeekOffset={setWeekOffset} config={config} weekStart={weekStart} weekCutoff={weekCutoff} />}
                         {activeTab === 'admin' && <AdminView allUsers={allUsers} config={config} setConfig={setConfig} currentUser={user} records={records} showToast={showToast} />}
                         {activeTab === 'mypage' && <MyPageView user={user} setUser={setUser} showToast={showToast} />}
@@ -3738,7 +3738,7 @@
         }
 
         // --- Payroll View ---
-        function PayrollView({ records, allUsers, config, weekRange, weekOffset, setWeekOffset, showToast, hrRecords, payrollSnapshots, currentSnap, user, weekStart, weekCutoff }) {
+        function PayrollView({ records, allUsers, config, weekRange, weekOffset, setWeekOffset, showToast, hrRecords, payrollSnapshots, currentSnap, viewSnap, user, weekStart, weekCutoff }) {
             const BONUS = { 0: 10000000000, 1: 5000000000, 2: 3000000000 };
             const AUDIT_BONUS = 20000000000;
             const AUDIT_BONUS_THRESHOLD = 50;
@@ -3833,14 +3833,13 @@
                 { bg:'bg-amber-900/15 border-amber-700/40',   num:'bg-amber-700 text-white',  bonusColor:'text-amber-400' },
             ];
 
-            // 수령 체크 상태 — currentSnap에서 읽어오기
+            // 수령 체크 상태 — viewSnap에서 읽어오기 (이번 주 + 과거 주 모두)
             const [received, setReceived] = useState({});
 
-            // currentSnap이 바뀌면 received 동기화
             React.useEffect(() => {
-                if (currentSnap?.received) setReceived(currentSnap.received);
+                if (viewSnap?.received) setReceived(viewSnap.received);
                 else setReceived({});
-            }, [currentSnap?.id]);
+            }, [viewSnap?.id, viewSnap?.weekKey]);
 
             const toggleReceived = async (uid) => {
                 const next = { ...received, [uid]: !received[uid] };
@@ -3947,7 +3946,7 @@
                     </div>
 
                     {/* 수령 현황 */}
-                    {isCurrentWeek && currentSnap && payableList.length > 0 && (
+                    {viewSnap && payableList.length > 0 && (
                         <div className="card border border-slate-700/50 space-y-3">
                             <div className="flex items-center justify-between flex-wrap gap-3">
                                 <div className="flex items-center gap-3">
@@ -3987,7 +3986,7 @@
                                         <th className="px-5 py-4 text-right whitespace-nowrap">기본주급 · 보너스</th>
                                         <th className="px-5 py-4 text-right whitespace-nowrap text-green-400">최종 주급</th>
                                         <th className="px-5 py-4 text-center whitespace-nowrap">복사</th>
-                                        {isCurrentWeek && currentSnap && <th className="px-5 py-4 text-center whitespace-nowrap text-blue-400">수령</th>}
+                                        {viewSnap && <th className="px-5 py-4 text-center whitespace-nowrap text-blue-400">수령</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 text-white font-heavy">
@@ -4023,7 +4022,7 @@
                                                 {d.weekly>0 ? <button onClick={()=>{copyToClipboard(String(d.weekly));showToast(`${d.name} 주급 복사됨`);}} className="p-2 bg-green-600/10 hover:bg-green-600/25 text-green-400 rounded-lg transition-all"><Icon name="copy" size={15}/></button>
                                                              : <span className="text-slate-700">-</span>}
                                             </td>
-                                            {isCurrentWeek && currentSnap && (
+                                            {viewSnap && (
                                                 <td className="px-5 py-4 text-center whitespace-nowrap">
                                                     {d.weekly > 0 ? (
                                                         <button onClick={() => toggleReceived(d.uid)}
