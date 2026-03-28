@@ -2713,7 +2713,7 @@
                         s[key].deposit += (r.totalAmount || 0) * 0.5;
                     });
                 return Object.values(s).sort((a, b) => b.count - a.count);
-            }, [records, allUsers, weekRange]);
+            }, [records, allUsers, weekRange, weekStart, weekCutoff]);
 
             const podium = [data[1], data[0], data[2]];
 
