@@ -1012,12 +1012,14 @@
                 if (debounceRef.current) clearTimeout(debounceRef.current);
                 if (!nickname && !sn) { setDupCheck(null); return; }
                 debounceRef.current = setTimeout(() => {
-                    // 블랙리스트 확인
+                    // 블랙리스트 확인 — 해제된 기록 제외, 기간 유효한 것만
                     const now = new Date();
                     const blEntry = (blacklist||[]).find(b =>
-                        (sn && b.buyerSn === sn) || (nickname && b.buyerNickname === nickname)
+                        !b.releasedAt &&
+                        new Date(b.endDate) >= now &&
+                        ((sn && b.buyerSn === sn) || (nickname && b.buyerNickname === nickname))
                     );
-                    const isBlacklisted = blEntry && new Date(blEntry.endDate) >= now;
+                    const isBlacklisted = !!blEntry;
 
                     // 오늘 중복 구매 확인
                     const today = new Date(); today.setHours(0,0,0,0);
