@@ -3833,9 +3833,23 @@
                 { bg:'bg-amber-900/15 border-amber-700/40',   num:'bg-amber-700 text-white',  bonusColor:'text-amber-400' },
             ];
 
-            // 수령 체크 상태 (uid → true/false)
+            // 수령 체크 상태 — currentSnap에서 읽어오기
             const [received, setReceived] = useState({});
-            const toggleReceived = (uid) => setReceived(prev => ({ ...prev, [uid]: !prev[uid] }));
+
+            // currentSnap이 바뀌면 received 동기화
+            React.useEffect(() => {
+                if (currentSnap?.received) setReceived(currentSnap.received);
+                else setReceived({});
+            }, [currentSnap?.id]);
+
+            const toggleReceived = async (uid) => {
+                const next = { ...received, [uid]: !received[uid] };
+                setReceived(next);
+                const weekKey = weekRange.start.toISOString().slice(0,10);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payroll_snapshots', 'ps_' + weekKey), {
+                    received: next
+                });
+            };
 
             const payableList = rankedData.filter(d => d.weekly > 0);
             const receivedCount = payableList.filter(d => received[d.uid]).length;
