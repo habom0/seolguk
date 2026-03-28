@@ -619,7 +619,7 @@
                 [prevSnap, weekRange]
             );
             const weekCutoff = useMemo(() => {
-                if (weekOffset === 0) return currentSnap ? new Date(currentSnap.cutoffAt) : new Date();
+                if (weekOffset === 0) return currentSnap ? new Date(currentSnap.cutoffAt) : weekRange.end;
                 return viewSnap ? new Date(viewSnap.cutoffAt) : weekRange.end;
             }, [currentSnap, viewSnap, weekOffset, weekRange]);
 
